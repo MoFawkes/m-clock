@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>m-clock — Display</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="status-line">
+    <span class="dot" id="dot"></span>
+    <span id="statusText">Connecting…</span>
+  </div>
+
+  <div class="display">
+    <div class="clock" id="clock">--:--</div>
+    <div class="date" id="date"></div>
+  </div>
+
+  <button class="enable-btn" id="enableBtn">🔔 Tap to enable sound</button>
+
+  <div class="overlay" id="overlay">
+    <div class="icon" id="ovIcon">🔔</div>
+    <div class="title" id="ovTitle">Alert</div>
+    <div class="msg" id="ovMsg"></div>
+    <button class="dismiss" id="dismissBtn">Dismiss</button>
+  </div>
+
+  <script src="/sounds.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let soundEnabled = false;
+
+    // --- Clock ---
+    function tick() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      $('clock').textContent = `${hh}:${mm}:${ss}`;
+      $('date').textContent = now.toLocaleDateString(undefined, {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      });
+    }
+    setInterval(tick, 1000);
+    tick();
+
+    // --- Enable sound (browsers require a user gesture) ---
+    $('enableBtn').addEventListener('click', () => {
+      MClockAudio.unlock();
+      soundEnabled = true;
+      $('enableBtn').classList.add('hidden');
+    });
+
+    // --- Alert overlay ---
+    function showAlert(a) {
+      const ov = $('overlay');
+      ov.className = 'overlay show ' + (a.type === 'salah' ? 'salah' : 'lesson');
+      $('ovIcon').textContent = a.type === 'salah' ? '🕌' : '🔔';
+      $('ovTitle').textContent = a.title || (a.type === 'salah' ? 'Salah Time' : 'Lesson');
+      $('ovMsg').textContent = a.message || '';
+      if (soundEnabled) MClockAudio.play(a.sound || 'bell', a.duration || 30);
+      try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+    }
+    function hideAlert() {
+      $('overlay').className = 'overlay';
+      MClockAudio.stop();
+    }
+    $('dismissBtn').addEventListener('click', hideAlert);
+
+    // --- Live connection to the main computer ---
+    const name = new URLSearchParams(location.search).get('name') ||
+                 ('Display ' + Math.floor(Math.random() * 900 + 100));
+    function connect() {
+      const es = new EventSource('/events?name=' + encodeURIComponent(name));
+      es.addEventListener('hello', () => {
+        $('dot').classList.add('on');
+        $('statusText').textContent = 'Connected — ' + name;
+      });
+      es.addEventListener('alert', (e) => showAlert(JSON.parse(e.data)));
+      es.addEventListener('stop', hideAlert);
+      es.onerror = () => {
+        $('dot').classList.remove('on');
+        $('statusText').textContent = 'Reconnecting…';
+        // EventSource auto-reconnects; nothing else needed.
+      };
+    }
+    connect();
+  </script>
+</body>
+</html>

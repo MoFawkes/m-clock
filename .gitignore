@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+
+# Generated at runtime by the server; not committed so each install starts
+# from the built-in defaults (delete this line if you want to track it).
+schedule.json

@@ -1,0 +1,14 @@
+{
+  "name": "m-clock",
+  "version": "1.0.0",
+  "description": "Networked classroom alarm system. One main computer pushes lesson/Salah alerts to all other computers automatically.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

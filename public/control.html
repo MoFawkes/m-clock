@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>m-clock — Control Panel</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <h1>🕌 m-clock — Control Panel</h1>
+    <span class="pill">Connected displays: <b id="displayCount">0</b></span>
+  </header>
+
+  <!-- Instant alerts -->
+  <div class="card">
+    <h2>Send an alert now</h2>
+    <div class="quick">
+      <button class="qbtn salah" data-type="salah" data-title="Salah Time" data-msg="حَيَّ عَلَى الصَّلَاة" data-sound="adhan">🕌 Salah Time<small>Adhan to all screens</small></button>
+      <button class="qbtn lesson" data-type="lesson" data-title="End of Lesson" data-msg="Please pack away" data-sound="bell">🔔 End of Lesson<small>Bell to all screens</small></button>
+      <button class="qbtn lesson" data-type="lesson" data-title="Lesson Starting" data-msg="Please be seated" data-sound="bell">📚 Start Lesson<small>Bell to all screens</small></button>
+      <button class="qbtn lesson" data-type="lesson" data-title="Break Time" data-msg="Enjoy your break" data-sound="bell">☕ Break Time<small>Bell to all screens</small></button>
+      <button class="qbtn stop" id="stopBtn">⏹ Stop / Dismiss<small>Clear all screens</small></button>
+    </div>
+  </div>
+
+  <!-- Custom alert -->
+  <div class="card">
+    <h2>Custom alert</h2>
+    <div class="row" style="margin-bottom:10px">
+      <div style="flex:1; min-width:160px">
+        <label>Title</label>
+        <input type="text" id="cTitle" placeholder="e.g. Assembly Time" />
+      </div>
+      <div style="min-width:120px">
+        <label>Type</label>
+        <select id="cType">
+          <option value="lesson">Lesson / Bell</option>
+          <option value="salah">Salah</option>
+        </select>
+      </div>
+      <div style="min-width:120px">
+        <label>Sound</label>
+        <select id="cSound">
+          <option value="bell">Bell</option>
+          <option value="adhan">Adhan</option>
+        </select>
+      </div>
+      <div style="min-width:110px">
+        <label>Ring (sec)</label>
+        <input type="number" id="cDuration" value="30" min="3" max="600" style="width:100%" />
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label>Message (optional)</label>
+      <textarea id="cMsg" placeholder="Shown on every screen"></textarea>
+    </div>
+    <button class="btn" id="sendCustom">Send to all displays</button>
+  </div>
+
+  <!-- Schedule -->
+  <div class="card">
+    <h2>Automatic schedule</h2>
+    <div class="row" style="justify-content:space-between; margin-bottom:12px">
+      <label class="switch">
+        <input type="checkbox" id="schedEnabled" /> Schedule enabled
+      </label>
+      <div class="muted">Times use this computer's clock (24-hour).</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th>Days</th><th></th></tr>
+      </thead>
+      <tbody id="schedBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:14px">
+      <button class="btn ghost small" id="addRow">+ Add time</button>
+      <button class="btn" id="saveSched">Save schedule</button>
+      <span class="muted" id="schedHint"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>How to connect the other computers</h2>
+    <p class="muted">On every other computer, open a web browser and go to the address shown in the
+    server window (looks like <b>http://192.168.x.x:3000/</b>). Then tap
+    <b>“Enable sound”</b> once on each screen. That's it — alerts will arrive automatically.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function trigger(payload) {
+  const r = await fetch('/api/trigger', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await r.json();
+  if (data.ok) toast(`Sent to ${data.displays} display(s)`);
+  else toast('Error: ' + (data.error || 'failed'));
+}
+
+// Quick buttons
+document.querySelectorAll('.qbtn[data-type]').forEach((b) => {
+  b.addEventListener('click', () => trigger({
+    type: b.dataset.type, title: b.dataset.title,
+    message: b.dataset.msg, sound: b.dataset.sound, duration: 30,
+  }));
+});
+
+$('stopBtn').addEventListener('click', async () => {
+  await fetch('/api/stop', { method: 'POST' });
+  toast('Cleared all screens');
+});
+
+$('sendCustom').addEventListener('click', () => trigger({
+  type: $('cType').value,
+  title: $('cTitle').value || 'Alert',
+  message: $('cMsg').value,
+  sound: $('cSound').value,
+  duration: Number($('cDuration').value) || 30,
+}));
+
+// ---------- Schedule editor ----------
+function dayChips(days) {
+  const wrap = document.createElement('div');
+  wrap.className = 'days';
+  DAYS.forEach((d, i) => {
+    const el = document.createElement('span');
+    el.className = 'day' + ((days.length === 0 || days.includes(i)) ? ' on' : '');
+    el.textContent = d;
+    el.dataset.day = i;
+    el.title = 'Click to toggle';
+    el.addEventListener('click', () => el.classList.toggle('on'));
+    wrap.appendChild(el);
+  });
+  return wrap;
+}
+
+function addScheduleRow(ev = {}) {
+  const tr = document.createElement('tr');
+
+  const tdTime = document.createElement('td');
+  const time = document.createElement('input');
+  time.type = 'time'; time.value = ev.time || '12:00'; time.className = 'f-time';
+  tdTime.appendChild(time);
+
+  const tdTitle = document.createElement('td');
+  const title = document.createElement('input');
+  title.type = 'text'; title.value = ev.title || ''; title.className = 'f-title';
+  title.placeholder = 'Title'; title.style.minWidth = '140px';
+  tdTitle.appendChild(title);
+
+  const tdType = document.createElement('td');
+  const type = document.createElement('select');
+  type.className = 'f-type';
+  type.innerHTML = '<option value="lesson">Lesson</option><option value="salah">Salah</option>';
+  type.value = ev.type || 'lesson';
+  tdType.appendChild(type);
+
+  const tdSound = document.createElement('td');
+  const sound = document.createElement('select');
+  sound.className = 'f-sound';
+  sound.innerHTML = '<option value="bell">Bell</option><option value="adhan">Adhan</option>';
+  sound.value = ev.sound || 'bell';
+  tdSound.appendChild(sound);
+
+  const tdDays = document.createElement('td');
+  tdDays.appendChild(dayChips(Array.isArray(ev.days) ? ev.days : []));
+
+  const tdDel = document.createElement('td');
+  const del = document.createElement('button');
+  del.className = 'btn ghost small'; del.textContent = '✕';
+  del.addEventListener('click', () => tr.remove());
+  tdDel.appendChild(del);
+
+  // Keep the message on the row so we don't lose it on save.
+  tr.dataset.message = ev.message || '';
+  tr.append(tdTime, tdTitle, tdType, tdSound, tdDays, tdDel);
+  $('schedBody').appendChild(tr);
+}
+
+function collectSchedule() {
+  const events = [...$('schedBody').children].map((tr, i) => {
+    const onDays = [...tr.querySelectorAll('.day')]
+      .filter((d) => d.classList.contains('on'))
+      .map((d) => Number(d.dataset.day));
+    // All 7 selected == every day == store empty array.
+    const days = onDays.length === 7 ? [] : onDays;
+    return {
+      id: tr.dataset.id || `ev${Date.now()}_${i}`,
+      time: tr.querySelector('.f-time').value,
+      title: tr.querySelector('.f-title').value || 'Alert',
+      type: tr.querySelector('.f-type').value,
+      sound: tr.querySelector('.f-sound').value,
+      message: tr.dataset.message || '',
+      days,
+    };
+  });
+  return { enabled: $('schedEnabled').checked, events };
+}
+
+async function loadSchedule() {
+  const r = await fetch('/api/schedule');
+  const { schedule } = await r.json();
+  $('schedEnabled').checked = schedule.enabled !== false;
+  $('schedBody').innerHTML = '';
+  schedule.events.forEach((ev) => {
+    addScheduleRow(ev);
+    $('schedBody').lastChild.dataset.id = ev.id;
+  });
+}
+
+$('addRow').addEventListener('click', () => addScheduleRow());
+$('saveSched').addEventListener('click', async () => {
+  const body = collectSchedule();
+  const r = await fetch('/api/schedule', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json();
+  toast(data.ok ? 'Schedule saved' : 'Save failed');
+});
+
+// ---------- Live display count ----------
+async function refreshStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const data = await r.json();
+    $('displayCount').textContent = data.count;
+  } catch (e) {}
+}
+setInterval(refreshStatus, 3000);
+
+loadSchedule();
+refreshStatus();
+</script>
+</body>
+</html>
