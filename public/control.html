@@ -4,12 +4,16 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>m-clock — Control Panel</title>
+<link rel="icon" href="/assets/logo.jpg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 <div class="wrap">
   <header class="bar">
-    <h1>🕌 m-clock — Control Panel</h1>
+    <div class="brand">
+      <img src="/assets/logo.jpg" alt="logo" />
+      <h1>m-clock<span>Control Panel</span></h1>
+    </div>
     <span class="pill">Connected displays: <b id="displayCount">0</b></span>
   </header>
 
@@ -35,17 +39,11 @@
       </div>
       <div style="min-width:120px">
         <label>Type</label>
-        <select id="cType">
-          <option value="lesson">Lesson / Bell</option>
-          <option value="salah">Salah</option>
-        </select>
+        <select id="cType"><option value="lesson">Lesson / Bell</option><option value="salah">Salah</option></select>
       </div>
       <div style="min-width:120px">
         <label>Sound</label>
-        <select id="cSound">
-          <option value="bell">Bell</option>
-          <option value="adhan">Adhan</option>
-        </select>
+        <select id="cSound"><option value="bell">Bell</option><option value="adhan">Adhan</option></select>
       </div>
       <div style="min-width:110px">
         <label>Ring (sec)</label>
@@ -59,33 +57,53 @@
     <button class="btn" id="sendCustom">Send to all displays</button>
   </div>
 
-  <!-- Schedule -->
+  <!-- Weekly schedule -->
   <div class="card">
-    <h2>Automatic schedule</h2>
-    <div class="row" style="justify-content:space-between; margin-bottom:12px">
-      <label class="switch">
-        <input type="checkbox" id="schedEnabled" /> Schedule enabled
-      </label>
+    <h2>Weekly schedule</h2>
+    <div class="row" style="justify-content:space-between; margin-bottom:14px">
+      <label class="switch"><input type="checkbox" id="schedEnabled" /> Schedule enabled</label>
       <div class="muted">Times use this computer's clock (24-hour).</div>
     </div>
+
+    <div class="row" style="margin-bottom:12px">
+      <span class="muted" style="margin-right:4px">View day:</span>
+      <div class="filter" id="dayFilter">
+        <span class="chip active" data-day="all">All</span>
+        <span class="chip" data-day="mt">Mon–Thu</span>
+        <span class="chip" data-day="5">Fri</span>
+        <span class="chip" data-day="6">Sat</span>
+        <span class="chip" data-day="0">Sun</span>
+      </div>
+    </div>
+
     <table>
       <thead>
-        <tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th>Days</th><th></th></tr>
+        <tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th>Runs on</th><th></th></tr>
       </thead>
       <tbody id="schedBody"></tbody>
     </table>
     <div class="row" style="margin-top:14px">
       <button class="btn ghost small" id="addRow">+ Add time</button>
-      <button class="btn" id="saveSched">Save schedule</button>
-      <span class="muted" id="schedHint"></span>
+      <button class="btn gold" id="saveSched">Save schedule</button>
+    </div>
+  </div>
+
+  <!-- Date overrides -->
+  <div class="card">
+    <h2>Special dates (holidays, Ramadan, exams…)</h2>
+    <p class="muted" style="margin-top:-6px">On a special date you can turn off all automatic alerts, or run a different timetable just for that day. This replaces the weekly schedule above for that date only.</p>
+    <div id="overrideList"></div>
+    <div class="row" style="margin-top:6px">
+      <button class="btn ghost small" id="addOverride">+ Add special date</button>
+      <span class="muted">Remember to press <b>Save schedule</b> after editing.</span>
     </div>
   </div>
 
   <div class="card">
     <h2>How to connect the other computers</h2>
-    <p class="muted">On every other computer, open a web browser and go to the address shown in the
+    <p class="muted">On every other computer, open a browser and go to the address shown in the
     server window (looks like <b>http://192.168.x.x:3000/</b>). Then tap
-    <b>“Enable sound”</b> once on each screen. That's it — alerts will arrive automatically.</p>
+    <b>“Enable sound”</b> once on each screen. Alerts then arrive automatically.</p>
   </div>
 </div>
 
@@ -93,7 +111,14 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; // index = weekday number
+const GROUPS = {
+  'Mon–Thu': [1, 2, 3, 4],
+  'Fri': [5],
+  'Sat': [6],
+  'Sun': [0],
+  'Every day': [0, 1, 2, 3, 4, 5, 6],
+};
 
 function toast(msg) {
   const t = $('toast');
@@ -105,37 +130,28 @@ function toast(msg) {
 
 async function trigger(payload) {
   const r = await fetch('/api/trigger', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
   });
   const data = await r.json();
-  if (data.ok) toast(`Sent to ${data.displays} display(s)`);
-  else toast('Error: ' + (data.error || 'failed'));
+  toast(data.ok ? `Sent to ${data.displays} display(s)` : 'Error: ' + (data.error || 'failed'));
 }
 
 // Quick buttons
 document.querySelectorAll('.qbtn[data-type]').forEach((b) => {
   b.addEventListener('click', () => trigger({
-    type: b.dataset.type, title: b.dataset.title,
-    message: b.dataset.msg, sound: b.dataset.sound, duration: 30,
+    type: b.dataset.type, title: b.dataset.title, message: b.dataset.msg, sound: b.dataset.sound, duration: 30,
   }));
 });
-
 $('stopBtn').addEventListener('click', async () => {
   await fetch('/api/stop', { method: 'POST' });
   toast('Cleared all screens');
 });
-
 $('sendCustom').addEventListener('click', () => trigger({
-  type: $('cType').value,
-  title: $('cTitle').value || 'Alert',
-  message: $('cMsg').value,
-  sound: $('cSound').value,
-  duration: Number($('cDuration').value) || 30,
+  type: $('cType').value, title: $('cTitle').value || 'Alert',
+  message: $('cMsg').value, sound: $('cSound').value, duration: Number($('cDuration').value) || 30,
 }));
 
-// ---------- Schedule editor ----------
+// ---------- Reusable event-row builder (used by weekly schedule & overrides) ----------
 function dayChips(days) {
   const wrap = document.createElement('div');
   wrap.className = 'days';
@@ -144,65 +160,73 @@ function dayChips(days) {
     el.className = 'day' + ((days.length === 0 || days.includes(i)) ? ' on' : '');
     el.textContent = d;
     el.dataset.day = i;
-    el.title = 'Click to toggle';
     el.addEventListener('click', () => el.classList.toggle('on'));
     wrap.appendChild(el);
   });
   return wrap;
 }
 
-function addScheduleRow(ev = {}) {
-  const tr = document.createElement('tr');
-
-  const tdTime = document.createElement('td');
-  const time = document.createElement('input');
-  time.type = 'time'; time.value = ev.time || '12:00'; time.className = 'f-time';
-  tdTime.appendChild(time);
-
-  const tdTitle = document.createElement('td');
-  const title = document.createElement('input');
-  title.type = 'text'; title.value = ev.title || ''; title.className = 'f-title';
-  title.placeholder = 'Title'; title.style.minWidth = '140px';
-  tdTitle.appendChild(title);
-
-  const tdType = document.createElement('td');
-  const type = document.createElement('select');
-  type.className = 'f-type';
-  type.innerHTML = '<option value="lesson">Lesson</option><option value="salah">Salah</option>';
-  type.value = ev.type || 'lesson';
-  tdType.appendChild(type);
-
-  const tdSound = document.createElement('td');
-  const sound = document.createElement('select');
-  sound.className = 'f-sound';
-  sound.innerHTML = '<option value="bell">Bell</option><option value="adhan">Adhan</option>';
-  sound.value = ev.sound || 'bell';
-  tdSound.appendChild(sound);
-
-  const tdDays = document.createElement('td');
-  tdDays.appendChild(dayChips(Array.isArray(ev.days) ? ev.days : []));
-
-  const tdDel = document.createElement('td');
-  const del = document.createElement('button');
-  del.className = 'btn ghost small'; del.textContent = '✕';
-  del.addEventListener('click', () => tr.remove());
-  tdDel.appendChild(del);
-
-  // Keep the message on the row so we don't lose it on save.
-  tr.dataset.message = ev.message || '';
-  tr.append(tdTime, tdTitle, tdType, tdSound, tdDays, tdDel);
-  $('schedBody').appendChild(tr);
+function groupPresets(tr) {
+  const wrap = document.createElement('div');
+  wrap.className = 'groups';
+  Object.keys(GROUPS).forEach((label) => {
+    const b = document.createElement('span');
+    b.className = 'group-btn';
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      const want = GROUPS[label];
+      tr.querySelectorAll('.day').forEach((chip) => {
+        chip.classList.toggle('on', want.includes(Number(chip.dataset.day)));
+      });
+      applyDayFilter();
+    });
+    wrap.appendChild(b);
+  });
+  return wrap;
 }
 
-function collectSchedule() {
-  const events = [...$('schedBody').children].map((tr, i) => {
-    const onDays = [...tr.querySelectorAll('.day')]
-      .filter((d) => d.classList.contains('on'))
-      .map((d) => Number(d.dataset.day));
-    // All 7 selected == every day == store empty array.
-    const days = onDays.length === 7 ? [] : onDays;
+function addEventRow(tbody, ev = {}, withDays = true) {
+  const tr = document.createElement('tr');
+  if (ev.id) tr.dataset.id = ev.id;
+  tr.dataset.message = ev.message || '';
+
+  const mk = (cls, el) => { const td = document.createElement('td'); el.classList.add(cls); td.appendChild(el); return td; };
+
+  const time = document.createElement('input'); time.type = 'time'; time.value = ev.time || '12:00';
+  const title = document.createElement('input'); title.type = 'text'; title.value = ev.title || ''; title.placeholder = 'Title'; title.style.minWidth = '130px';
+  const type = document.createElement('select'); type.innerHTML = '<option value="lesson">Lesson</option><option value="salah">Salah</option>'; type.value = ev.type || 'lesson';
+  const sound = document.createElement('select'); sound.innerHTML = '<option value="bell">Bell</option><option value="adhan">Adhan</option>'; sound.value = ev.sound || 'bell';
+
+  tr.append(mk('f-time', time), mk('f-title', title), mk('f-type', type), mk('f-sound', sound));
+
+  if (withDays) {
+    const tdDays = document.createElement('td');
+    tdDays.appendChild(dayChips(Array.isArray(ev.days) ? ev.days : []));
+    tdDays.appendChild(groupPresets(tr));
+    tr.appendChild(tdDays);
+  } else {
+    tr.appendChild(document.createElement('td')); // overrides run on their date only
+  }
+
+  const tdDel = document.createElement('td');
+  const del = document.createElement('button'); del.className = 'btn danger small'; del.textContent = '✕';
+  del.addEventListener('click', () => tr.remove());
+  tdDel.appendChild(del);
+  tr.appendChild(tdDel);
+
+  tbody.appendChild(tr);
+  return tr;
+}
+
+function collectEvents(tbody, withDays = true) {
+  return [...tbody.children].map((tr, i) => {
+    let days = [];
+    if (withDays) {
+      const on = [...tr.querySelectorAll('.day')].filter((d) => d.classList.contains('on')).map((d) => Number(d.dataset.day));
+      days = on.length === 7 ? [] : on; // all 7 == every day == stored empty
+    }
     return {
-      id: tr.dataset.id || `ev${Date.now()}_${i}`,
+      id: tr.dataset.id || undefined,
       time: tr.querySelector('.f-time').value,
       title: tr.querySelector('.f-title').value || 'Alert',
       type: tr.querySelector('.f-type').value,
@@ -211,39 +235,118 @@ function collectSchedule() {
       days,
     };
   });
-  return { enabled: $('schedEnabled').checked, events };
 }
+
+// ---------- View-by-day filter ----------
+let activeFilter = 'all';
+function applyDayFilter() {
+  const wanted = activeFilter === 'all' ? null : (activeFilter === 'mt' ? [1, 2, 3, 4] : [Number(activeFilter)]);
+  [...$('schedBody').children].forEach((tr) => {
+    if (!wanted) { tr.classList.remove('row-dim'); return; }
+    const on = [...tr.querySelectorAll('.day')].filter((d) => d.classList.contains('on')).map((d) => Number(d.dataset.day));
+    const runsEveryDay = on.length === 0 || on.length === 7;
+    const matches = runsEveryDay || wanted.some((d) => on.includes(d));
+    tr.classList.toggle('row-dim', !matches);
+  });
+}
+$('dayFilter').querySelectorAll('.chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    $('dayFilter').querySelectorAll('.chip').forEach((c) => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeFilter = chip.dataset.day;
+    applyDayFilter();
+  });
+});
+
+// ---------- Date overrides ----------
+function addOverrideBlock(ov = {}) {
+  const block = document.createElement('div');
+  block.className = 'override-block';
+  if (ov.id) block.dataset.id = ov.id;
+
+  const head = document.createElement('div');
+  head.className = 'override-head';
+  head.innerHTML = `
+    <div><label>Date</label><input type="date" class="o-date"></div>
+    <div style="flex:1;min-width:140px"><label>Name</label><input type="text" class="o-label" placeholder="e.g. Eid, Exam day"></div>
+    <div><label>What happens</label>
+      <select class="o-mode">
+        <option value="off">No alerts (holiday)</option>
+        <option value="custom">Custom timetable</option>
+      </select>
+    </div>
+    <button class="btn danger small o-del">Remove</button>`;
+  block.appendChild(head);
+  head.querySelector('.o-date').value = ov.date || '';
+  head.querySelector('.o-label').value = ov.label || '';
+  head.querySelector('.o-mode').value = ov.mode === 'custom' ? 'custom' : 'off';
+
+  const custom = document.createElement('div');
+  custom.className = 'o-custom';
+  custom.style.marginTop = '12px';
+  custom.innerHTML = `<table><thead><tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th></th><th></th></tr></thead><tbody class="o-body"></tbody></table>
+    <button class="btn ghost small o-add" style="margin-top:8px">+ Add time</button>`;
+  block.appendChild(custom);
+
+  const obody = custom.querySelector('.o-body');
+  (ov.events || []).forEach((e) => addEventRow(obody, e, false));
+  custom.querySelector('.o-add').addEventListener('click', () => addEventRow(obody, {}, false));
+
+  const toggleCustom = () => { custom.style.display = head.querySelector('.o-mode').value === 'custom' ? '' : 'none'; };
+  head.querySelector('.o-mode').addEventListener('change', toggleCustom);
+  toggleCustom();
+
+  head.querySelector('.o-del').addEventListener('click', () => block.remove());
+  $('overrideList').appendChild(block);
+  return block;
+}
+
+function collectOverrides() {
+  return [...$('overrideList').children]
+    .map((block) => {
+      const mode = block.querySelector('.o-mode').value;
+      return {
+        id: block.dataset.id || undefined,
+        date: block.querySelector('.o-date').value,
+        label: block.querySelector('.o-label').value,
+        mode,
+        events: mode === 'custom' ? collectEvents(block.querySelector('.o-body'), false) : [],
+      };
+    })
+    .filter((o) => o.date); // drop blank rows
+}
+
+$('addRow').addEventListener('click', () => { addEventRow($('schedBody')); applyDayFilter(); });
+$('addOverride').addEventListener('click', () => addOverrideBlock());
+
+$('saveSched').addEventListener('click', async () => {
+  const body = {
+    enabled: $('schedEnabled').checked,
+    events: collectEvents($('schedBody')),
+    overrides: collectOverrides(),
+  };
+  const r = await fetch('/api/schedule', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const data = await r.json();
+  toast(data.ok ? 'Schedule saved ✓' : 'Save failed: ' + (data.error || ''));
+});
 
 async function loadSchedule() {
   const r = await fetch('/api/schedule');
   const { schedule } = await r.json();
   $('schedEnabled').checked = schedule.enabled !== false;
   $('schedBody').innerHTML = '';
-  schedule.events.forEach((ev) => {
-    addScheduleRow(ev);
-    $('schedBody').lastChild.dataset.id = ev.id;
-  });
+  (schedule.events || []).forEach((ev) => addEventRow($('schedBody'), ev));
+  $('overrideList').innerHTML = '';
+  (schedule.overrides || []).forEach((ov) => addOverrideBlock(ov));
+  applyDayFilter();
 }
-
-$('addRow').addEventListener('click', () => addScheduleRow());
-$('saveSched').addEventListener('click', async () => {
-  const body = collectSchedule();
-  const r = await fetch('/api/schedule', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await r.json();
-  toast(data.ok ? 'Schedule saved' : 'Save failed');
-});
 
 // ---------- Live display count ----------
 async function refreshStatus() {
-  try {
-    const r = await fetch('/api/status');
-    const data = await r.json();
-    $('displayCount').textContent = data.count;
-  } catch (e) {}
+  try { const r = await fetch('/api/status'); const data = await r.json(); $('displayCount').textContent = data.count; }
+  catch (e) {}
 }
 setInterval(refreshStatus, 3000);
 

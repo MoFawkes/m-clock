@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>m-clock — Display</title>
+<link rel="icon" href="/assets/logo.jpg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -13,8 +14,17 @@
   </div>
 
   <div class="display">
+    <div class="brand-mark">
+      <img src="/assets/logo.jpg" alt="logo" />
+      <div class="name"><b>m-clock</b><span>Madrasah Bell</span></div>
+    </div>
+
     <div class="clock" id="clock">--:--</div>
-    <div class="date" id="date"></div>
+
+    <div class="dates">
+      <div class="date-greg" id="dateGreg"></div>
+      <div class="date-hijri" id="dateHijri"></div>
+    </div>
   </div>
 
   <button class="enable-btn" id="enableBtn">🔔 Tap to enable sound</button>
@@ -31,16 +41,37 @@
     const $ = (id) => document.getElementById(id);
     let soundEnabled = false;
 
-    // --- Clock ---
+    // --- Hijri date (built into modern browsers, works offline) ---
+    let hijriFmt = null;
+    try {
+      hijriFmt = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      });
+    } catch (e) {
+      try { hijriFmt = new Intl.DateTimeFormat('en-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }); }
+      catch (e2) { hijriFmt = null; }
+    }
+
+    // --- Clock + dates ---
+    let lastDay = '';
     function tick() {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
       const mm = String(now.getMinutes()).padStart(2, '0');
       const ss = String(now.getSeconds()).padStart(2, '0');
-      $('clock').textContent = `${hh}:${mm}:${ss}`;
-      $('date').textContent = now.toLocaleDateString(undefined, {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      });
+      $('clock').innerHTML = `${hh}:${mm}<span class="secs">:${ss}</span>`;
+
+      const dayKey = now.toDateString();
+      if (dayKey !== lastDay) {
+        lastDay = dayKey;
+        $('dateGreg').textContent = now.toLocaleDateString(undefined, {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        });
+        if (hijriFmt) {
+          try { $('dateHijri').textContent = hijriFmt.format(now) + ' AH'; }
+          catch (e) { $('dateHijri').textContent = ''; }
+        }
+      }
     }
     setInterval(tick, 1000);
     tick();
@@ -82,7 +113,6 @@
       es.onerror = () => {
         $('dot').classList.remove('on');
         $('statusText').textContent = 'Reconnecting…';
-        // EventSource auto-reconnects; nothing else needed.
       };
     }
     connect();

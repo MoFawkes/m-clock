@@ -62,20 +62,41 @@ function fireAlert(alert) {
 // Schedule
 // ---------------------------------------------------------------------------
 
+// Weekday numbers: 0 Sun, 1 Mon, 2 Tue, 3 Wed, 4 Thu, 5 Fri, 6 Sat.
+// An event's `days` array lists the weekdays it runs on. Empty == every day.
+// The control panel offers quick groups: Mon–Thu [1,2,3,4], Fri [5],
+// Sat [6], Sun [0] — so each part of the week can have its own timetable.
+const MON_THU = [1, 2, 3, 4];
+
 const DEFAULT_SCHEDULE = {
-  // Weekday is 0 (Sun) .. 6 (Sat). Empty `days` means every day.
   enabled: true,
   events: [
+    // Salah times — every day.
     { id: 'fajr', time: '05:15', type: 'salah', title: 'Salah Time — Fajr', message: 'الصلاة خير من النوم', sound: 'adhan', days: [] },
     { id: 'dhuhr', time: '13:15', type: 'salah', title: 'Salah Time — Dhuhr', message: 'حَيَّ عَلَى الصَّلَاة', sound: 'adhan', days: [] },
     { id: 'asr', time: '16:45', type: 'salah', title: 'Salah Time — Asr', message: 'حَيَّ عَلَى الصَّلَاة', sound: 'adhan', days: [] },
     { id: 'maghrib', time: '20:30', type: 'salah', title: 'Salah Time — Maghrib', message: 'حَيَّ عَلَى الصَّلَاة', sound: 'adhan', days: [] },
     { id: 'isha', time: '22:00', type: 'salah', title: 'Salah Time — Isha', message: 'حَيَّ عَلَى الصَّلَاة', sound: 'adhan', days: [] },
-    { id: 'lesson1', time: '09:00', type: 'lesson', title: 'Lesson Starting', message: 'Please be seated', sound: 'bell', days: [0, 1, 2, 3, 4] },
-    { id: 'break1', time: '10:30', type: 'lesson', title: 'Break Time', message: 'End of lesson', sound: 'bell', days: [0, 1, 2, 3, 4] },
-    { id: 'lesson2', time: '11:00', type: 'lesson', title: 'Lesson Starting', message: 'Please be seated', sound: 'bell', days: [0, 1, 2, 3, 4] },
-    { id: 'lunch', time: '12:30', type: 'lesson', title: 'Lunch Break', message: 'End of lesson', sound: 'bell', days: [0, 1, 2, 3, 4] },
-    { id: 'home', time: '15:30', type: 'lesson', title: 'End of School Day', message: 'See you tomorrow, in shā’ Allāh', sound: 'bell', days: [0, 1, 2, 3, 4] },
+    // Monday–Thursday timetable.
+    { id: 'mt_start', time: '09:00', type: 'lesson', title: 'Lesson Starting', message: 'Please be seated', sound: 'bell', days: MON_THU },
+    { id: 'mt_break', time: '10:30', type: 'lesson', title: 'Break Time', message: 'End of lesson', sound: 'bell', days: MON_THU },
+    { id: 'mt_lesson2', time: '11:00', type: 'lesson', title: 'Lesson Starting', message: 'Please be seated', sound: 'bell', days: MON_THU },
+    { id: 'mt_lunch', time: '12:30', type: 'lesson', title: 'Lunch Break', message: 'End of lesson', sound: 'bell', days: MON_THU },
+    { id: 'mt_home', time: '15:30', type: 'lesson', title: 'End of School Day', message: 'See you tomorrow, in shā’ Allāh', sound: 'bell', days: MON_THU },
+    // Friday — shorter day for Jumu‘ah.
+    { id: 'fri_start', time: '09:00', type: 'lesson', title: 'Lesson Starting', message: 'Please be seated', sound: 'bell', days: [5] },
+    { id: 'fri_jummah', time: '12:00', type: 'salah', title: 'Jumu‘ah Preparation', message: 'Prepare for Jumu‘ah', sound: 'adhan', days: [5] },
+    // Saturday timetable.
+    { id: 'sat_start', time: '10:00', type: 'lesson', title: 'Lesson Starting', message: 'Please be seated', sound: 'bell', days: [6] },
+    { id: 'sat_home', time: '13:00', type: 'lesson', title: 'End of Day', message: 'Jazākum Allāhu khayran', sound: 'bell', days: [6] },
+    // Sunday has Salah only by default (no lesson bells).
+  ],
+  // Date-specific overrides (e.g. holidays, Ramadan, exams). For a matching
+  // date, `mode: "off"` cancels all automatic alerts that day, while
+  // `mode: "custom"` runs `events` INSTEAD of the normal weekday timetable.
+  overrides: [
+    // Example (disabled by default — edit in the control panel):
+    // { id: 'eid', date: '2026-03-20', label: 'Eid al-Fitr', mode: 'off', events: [] },
   ],
 };
 
@@ -84,6 +105,7 @@ function loadSchedule() {
     const raw = fs.readFileSync(SCHEDULE_FILE, 'utf8');
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.events)) throw new Error('invalid schedule');
+    if (!Array.isArray(parsed.overrides)) parsed.overrides = [];
     return parsed;
   } catch (err) {
     saveSchedule(DEFAULT_SCHEDULE);
@@ -101,6 +123,29 @@ let schedule = loadSchedule();
 let firedToday = new Set();
 let firedDay = new Date().toDateString();
 
+// Local YYYY-MM-DD for the given date (used to match date overrides).
+function localYMD(d) {
+  return (
+    d.getFullYear() +
+    '-' +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    '-' +
+    String(d.getDate()).padStart(2, '0')
+  );
+}
+
+// Which events apply today: a date override (off / custom) wins over the
+// normal weekday timetable.
+function eventsForToday(now) {
+  const ymd = localYMD(now);
+  const override = (schedule.overrides || []).find((o) => o.date === ymd);
+  if (override) {
+    if (override.mode === 'off') return [];
+    if (override.mode === 'custom') return override.events || [];
+  }
+  return schedule.events;
+}
+
 function checkSchedule() {
   const now = new Date();
   const today = now.toDateString();
@@ -114,7 +159,7 @@ function checkSchedule() {
     String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
   const weekday = now.getDay();
 
-  for (const ev of schedule.events) {
+  for (const ev of eventsForToday(now)) {
     if (ev.time !== hhmm) continue;
     if (firedToday.has(ev.id)) continue;
     if (Array.isArray(ev.days) && ev.days.length > 0 && !ev.days.includes(weekday)) continue;
@@ -144,6 +189,9 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
 };
 
 function sendJson(res, status, obj) {
@@ -251,17 +299,31 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse((await readBody(req)) || '{}');
       if (!Array.isArray(body.events)) throw new Error('events must be an array');
+      const cleanEvent = (e, i, prefix) => ({
+        id: e.id || `${prefix}${Date.now()}_${i}`,
+        time: e.time,
+        type: e.type === 'salah' ? 'salah' : 'lesson',
+        title: e.title || 'Alert',
+        message: e.message || '',
+        sound: e.sound === 'adhan' ? 'adhan' : 'bell',
+        days: Array.isArray(e.days) ? e.days.map(Number).filter((d) => d >= 0 && d <= 6) : [],
+      });
       schedule = {
         enabled: body.enabled !== false,
-        events: body.events.map((e, i) => ({
-          id: e.id || `ev${Date.now()}_${i}`,
-          time: e.time,
-          type: e.type || 'lesson',
-          title: e.title || 'Alert',
-          message: e.message || '',
-          sound: e.sound || 'bell',
-          days: Array.isArray(e.days) ? e.days : [],
-        })),
+        events: body.events.map((e, i) => cleanEvent(e, i, 'ev')),
+        overrides: Array.isArray(body.overrides)
+          ? body.overrides
+              .filter((o) => /^\d{4}-\d{2}-\d{2}$/.test(o.date || ''))
+              .map((o, i) => ({
+                id: o.id || `ov${Date.now()}_${i}`,
+                date: o.date,
+                label: o.label || '',
+                mode: o.mode === 'custom' ? 'custom' : 'off',
+                events: Array.isArray(o.events)
+                  ? o.events.map((e, j) => cleanEvent(e, j, `ovv${i}_`))
+                  : [],
+              }))
+          : [],
       };
       saveSchedule(schedule);
       // Allow an edited event to fire again later today.

@@ -63,14 +63,32 @@ On the control panel, press a button:
 - **⏹ Stop / Dismiss** — clears the alert on every screen at once.
 - Or send a **custom alert** with your own title, message, sound and ring length.
 
-### Automatic schedule
-In the **Automatic schedule** section, set the times for Salah and lessons.
-Each entry has a time, a title, a sound, and the days it applies to. When the
-main computer's clock reaches that time, the alert is sent to every screen
-automatically. Press **Save schedule** to keep your changes.
+### Weekly schedule (with custom weekdays)
+In the **Weekly schedule** section, set the times for Salah and lessons.
+Each entry has a time, a title, a sound, and **the days it runs on**.
 
-The five Salah times and a sample lesson timetable are pre-filled as a
-starting point — **edit them to match your local prayer times and timetable.**
+Different parts of the week can have **different timetables** — for example a
+Monday–Thursday timetable, a shorter **Friday** (Jumu‘ah) day, a **Saturday**
+schedule, and a quiet **Sunday**. Use the quick group buttons on each row
+(**Mon–Thu / Fri / Sat / Sun / Every day**) to set the days in one click, or
+tap individual day chips. Use the **View day** filter at the top to preview
+just one day's timetable.
+
+The five Salah times and a sample timetable are pre-filled as a starting point
+— **edit them to match your local prayer times and your timetable.** Press
+**Save schedule** to keep your changes.
+
+### Special dates (holidays, Ramadan, exams…)
+In the **Special dates** section you can override the weekly schedule for a
+specific calendar date:
+- **No alerts (holiday)** — turns off all automatic alerts that day.
+- **Custom timetable** — runs a different set of times *instead of* the normal
+  weekday schedule, just for that date.
+
+### Dates on the display
+Every display screen shows both the normal (Gregorian) date and the Islamic
+**Hijri** date, alongside the live clock. The Hijri date is calculated by the
+browser and needs no internet.
 
 ---
 
@@ -94,5 +112,20 @@ starting point — **edit them to match your local prayer times and timetable.**
 - `public/control.html` — the main computer's control panel.
 - `public/sounds.js` — synthesises the bell and adhan tones in the browser.
 - `schedule.json` — created automatically; stores your saved schedule.
+- `public/assets/logo.jpg` — the brand logo shown on the screens.
+
+## Branding
+
+The interface uses the project's colour scheme:
+
+| Colour | Hex |
+| --- | --- |
+| Primary Navy | `#112549` |
+| Secondary Blue | `#2E6DD8` |
+| Gold Accent | `#C89B3C` |
+| Cream Background | `#F4F0E6` |
+| Neutral Grey | `#6B7280` |
+
+To change the logo, replace `public/assets/logo.jpg` with your own image.
 
 Made with care. **Baarak Allāhu fīkum.** 🌙
