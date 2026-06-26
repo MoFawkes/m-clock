@@ -36,6 +36,20 @@ Or run it from a terminal:
 node server.js
 ```
 
+### Keep it without re-downloading (recommended)
+Instead of downloading the ZIP from GitHub each time, **clone it once** and then
+pull updates:
+
+```bash
+git clone -b claude/multi-computer-alarm-app-qr642l https://github.com/MoFawkes/m-clock.git
+cd m-clock
+```
+
+From then on:
+- **To run:** double-click `start.bat` / `start.command` / `start.sh`.
+- **To update to the latest version + run:** double-click `update.bat` /
+  `update.command` (this does `git pull` for you, then starts the server).
+
 You'll see something like:
 
 ```
