@@ -57,6 +57,19 @@ const MClockAudio = (() => {
     tone(2640, start, 0.5, 0.08, 'sine');
   }
 
+  function chimePhrase(start) {
+    // A soft, gentle two-tone reminder chime for a Naseehah (advice/reminder).
+    const notes = [
+      [523.25, 0.0, 1.1], // C5
+      [659.25, 0.45, 1.4], // E5
+      [783.99, 0.9, 1.8], // G5
+    ];
+    for (const [f, t, d] of notes) {
+      tone(f, start + t, d, 0.22, 'sine');
+      tone(f * 2, start + t, d * 0.5, 0.04, 'sine');
+    }
+  }
+
   function adhanPhrase(start) {
     // A slow rising-then-falling melodic line, vocal-like and calm.
     const notes = [
@@ -78,8 +91,7 @@ const MClockAudio = (() => {
   function play(kind, seconds = 30) {
     stop();
     ensureCtx();
-    const isAdhan = kind === 'adhan';
-    const period = isAdhan ? 6 : 2.2; // seconds between repeats
+    const period = kind === 'adhan' ? 6 : kind === 'chime' ? 4 : 2.2; // seconds between repeats
     const endAt = Date.now() + seconds * 1000;
 
     const fireOne = () => {
@@ -87,7 +99,8 @@ const MClockAudio = (() => {
         stop();
         return;
       }
-      if (isAdhan) adhanPhrase(0);
+      if (kind === 'adhan') adhanPhrase(0);
+      else if (kind === 'chime') chimePhrase(0);
       else bellHit(0);
     };
 

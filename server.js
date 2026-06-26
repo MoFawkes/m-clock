@@ -20,6 +20,7 @@ const os = require('os');
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SCHEDULE_FILE = path.join(__dirname, 'schedule.json');
+const BROADCASTS_FILE = path.join(__dirname, 'broadcasts.json');
 
 // ---------------------------------------------------------------------------
 // Connected displays (Server-Sent Events clients)
@@ -119,6 +120,23 @@ function saveSchedule(schedule) {
 
 let schedule = loadSchedule();
 
+// ---------------------------------------------------------------------------
+// Saved broadcasts (reusable custom messages)
+// ---------------------------------------------------------------------------
+
+function loadBroadcasts() {
+  try {
+    const arr = JSON.parse(fs.readFileSync(BROADCASTS_FILE, 'utf8'));
+    return Array.isArray(arr) ? arr : [];
+  } catch (err) {
+    return [];
+  }
+}
+function saveBroadcasts(list) {
+  fs.writeFileSync(BROADCASTS_FILE, JSON.stringify(list, null, 2));
+}
+let broadcasts = loadBroadcasts();
+
 // Track which events already fired today so we never double-fire.
 let firedToday = new Set();
 let firedDay = new Date().toDateString();
@@ -134,11 +152,19 @@ function localYMD(d) {
   );
 }
 
+// A date override matches a single date, or any day within an (optional)
+// inclusive date range [date .. endDate].
+function overrideMatches(o, ymd) {
+  if (!o.date) return false;
+  const end = o.endDate && o.endDate >= o.date ? o.endDate : o.date;
+  return ymd >= o.date && ymd <= end;
+}
+
 // Which events apply today: a date override (off / custom) wins over the
 // normal weekday timetable.
 function eventsForToday(now) {
   const ymd = localYMD(now);
-  const override = (schedule.overrides || []).find((o) => o.date === ymd);
+  const override = (schedule.overrides || []).find((o) => overrideMatches(o, ymd));
   if (override) {
     if (override.mode === 'off') return [];
     if (override.mode === 'custom') return override.events || [];
@@ -299,28 +325,33 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse((await readBody(req)) || '{}');
       if (!Array.isArray(body.events)) throw new Error('events must be an array');
+      const TYPES = ['lesson', 'salah', 'naseehah'];
+      const SOUNDS = ['bell', 'adhan', 'chime'];
       const cleanEvent = (e, i, prefix) => ({
         id: e.id || `${prefix}${Date.now()}_${i}`,
         time: e.time,
-        type: e.type === 'salah' ? 'salah' : 'lesson',
+        type: TYPES.includes(e.type) ? e.type : 'lesson',
         title: e.title || 'Alert',
         message: e.message || '',
-        sound: e.sound === 'adhan' ? 'adhan' : 'bell',
+        sound: SOUNDS.includes(e.sound) ? e.sound : 'bell',
         days: Array.isArray(e.days) ? e.days.map(Number).filter((d) => d >= 0 && d <= 6) : [],
       });
+      // Keep each day's events ordered by time.
+      const byTime = (a, b) => (a.time || '').localeCompare(b.time || '');
       schedule = {
         enabled: body.enabled !== false,
-        events: body.events.map((e, i) => cleanEvent(e, i, 'ev')),
+        events: body.events.map((e, i) => cleanEvent(e, i, 'ev')).sort(byTime),
         overrides: Array.isArray(body.overrides)
           ? body.overrides
               .filter((o) => /^\d{4}-\d{2}-\d{2}$/.test(o.date || ''))
               .map((o, i) => ({
                 id: o.id || `ov${Date.now()}_${i}`,
                 date: o.date,
+                endDate: /^\d{4}-\d{2}-\d{2}$/.test(o.endDate || '') && o.endDate >= o.date ? o.endDate : '',
                 label: o.label || '',
                 mode: o.mode === 'custom' ? 'custom' : 'off',
                 events: Array.isArray(o.events)
-                  ? o.events.map((e, j) => cleanEvent(e, j, `ovv${i}_`))
+                  ? o.events.map((e, j) => cleanEvent(e, j, `ovv${i}_`)).sort(byTime)
                   : [],
               }))
           : [],
@@ -329,6 +360,31 @@ const server = http.createServer(async (req, res) => {
       // Allow an edited event to fire again later today.
       firedToday = new Set();
       return sendJson(res, 200, { ok: true, schedule });
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: err.message });
+    }
+  }
+
+  // --- Saved broadcasts (reusable custom messages) ---
+  if (pathname === '/api/broadcasts' && req.method === 'GET') {
+    return sendJson(res, 200, { ok: true, broadcasts });
+  }
+  if (pathname === '/api/broadcasts' && req.method === 'POST') {
+    try {
+      const body = JSON.parse((await readBody(req)) || '{}');
+      if (!Array.isArray(body.broadcasts)) throw new Error('broadcasts must be an array');
+      const TYPES = ['lesson', 'salah', 'naseehah'];
+      const SOUNDS = ['bell', 'adhan', 'chime'];
+      broadcasts = body.broadcasts.slice(0, 100).map((b, i) => ({
+        id: b.id || `bc${Date.now()}_${i}`,
+        title: (b.title || 'Untitled').slice(0, 120),
+        type: TYPES.includes(b.type) ? b.type : 'lesson',
+        sound: SOUNDS.includes(b.sound) ? b.sound : 'bell',
+        message: (b.message || '').slice(0, 500),
+        duration: Math.min(600, Math.max(3, Number(b.duration) || 30)),
+      }));
+      saveBroadcasts(broadcasts);
+      return sendJson(res, 200, { ok: true, broadcasts });
     } catch (err) {
       return sendJson(res, 400, { ok: false, error: err.message });
     }

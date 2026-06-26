@@ -116,20 +116,32 @@ setInterval(updatePeriods, 20000);
 loadSchedule();
 setInterval(loadSchedule, 5 * 60 * 1000); // pick up edits
 
-// --- Enable sound (browsers require a user gesture) ---
+// --- Enable sound (browsers require a user gesture) + desktop notifications ---
 $('enableBtn').addEventListener('click', () => {
   MClockAudio.unlock(); soundEnabled = true; $('enableBtn').classList.add('hidden');
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
 });
+
+const ICONS = { salah: '🕌', naseehah: '📿', lesson: '🔔' };
+const TITLES = { salah: 'Salah Time', naseehah: 'Naseehah', lesson: 'Lesson' };
 
 // --- Alert overlay ---
 function showAlert(a) {
+  const type = ICONS[a.type] ? a.type : 'lesson';
   const ov = $('overlay');
-  ov.className = 'overlay show ' + (a.type === 'salah' ? 'salah' : 'lesson');
-  $('ovIcon').textContent = a.type === 'salah' ? '🕌' : '🔔';
-  $('ovTitle').textContent = a.title || (a.type === 'salah' ? 'Salah Time' : 'Lesson');
+  ov.className = 'overlay show ' + type;
+  $('ovIcon').textContent = ICONS[type];
+  $('ovTitle').textContent = a.title || TITLES[type];
   $('ovMsg').textContent = a.message || '';
   if (soundEnabled) MClockAudio.play(a.sound || 'bell', a.duration || 30);
   try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+  // Desktop notification (so it shows even if this tab is not in front).
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification(a.title || TITLES[type], { body: a.message || '', icon: '/assets/logo.jpg', tag: 'm-clock' });
+      setTimeout(() => n.close(), 8000);
+    }
+  } catch (e) {}
 }
 function hideAlert() { $('overlay').className = 'overlay'; MClockAudio.stop(); }
 $('dismissBtn').addEventListener('click', hideAlert);

@@ -49,11 +49,21 @@
       </div>
       <div class="actions">
         <button class="action salah" data-type="salah" data-title="Salah Time" data-msg="حَيَّ عَلَى الصَّلَاة" data-sound="adhan"><span class="emoji">🕌</span>Salah<small>Adhan</small></button>
+        <button class="action naseehah" data-type="naseehah" data-title="Naseehah" data-msg="A short reminder, in shā’ Allāh" data-sound="chime"><span class="emoji">📿</span>Naseehah<small>Chime</small></button>
         <button class="action" data-type="lesson" data-title="Lesson Starting" data-msg="Please be seated" data-sound="bell"><span class="emoji">📚</span>Class Start<small>Bell</small></button>
         <button class="action" data-type="lesson" data-title="End of Lesson" data-msg="Please pack away" data-sound="bell"><span class="emoji">🔔</span>End Lesson<small>Bell</small></button>
         <button class="action" data-type="lesson" data-title="Break Time" data-msg="Enjoy your break" data-sound="bell"><span class="emoji">☕</span>Break<small>Bell</small></button>
         <button class="action danger" id="stopBtn"><span class="emoji">⏹</span>Stop<small>Clear screens</small></button>
       </div>
+    </div>
+
+    <!-- Today's schedule -->
+    <div class="card" id="card-today">
+      <div class="card-head">
+        <h2><span class="bar"></span> Today's Schedule</h2>
+        <span class="muted" id="todayDate"></span>
+      </div>
+      <div id="todayList" class="today-list"><span class="muted">Loading…</span></div>
     </div>
 
     <div class="grid-2">
@@ -62,12 +72,16 @@
         <div class="card-head"><h2><span class="bar"></span> Custom Broadcast</h2></div>
         <div class="field"><label>Title</label><input type="text" id="cTitle" placeholder="e.g. Assembly Postponed" /></div>
         <div class="row" style="margin-bottom:12px">
-          <div style="flex:1; min-width:110px"><label>Type</label><select id="cType"><option value="lesson">Lesson / Bell</option><option value="salah">Salah</option></select></div>
-          <div style="flex:1; min-width:110px"><label>Sound</label><select id="cSound"><option value="bell">Bell</option><option value="adhan">Adhan</option></select></div>
+          <div style="flex:1; min-width:110px"><label>Type</label><select id="cType"><option value="lesson">Lesson / Bell</option><option value="salah">Salah</option><option value="naseehah">Naseehah</option></select></div>
+          <div style="flex:1; min-width:110px"><label>Sound</label><select id="cSound"><option value="bell">Bell</option><option value="adhan">Adhan</option><option value="chime">Chime</option></select></div>
           <div style="width:90px"><label>Ring (s)</label><input type="number" id="cDuration" value="30" min="3" max="600" /></div>
         </div>
         <div class="field"><label>Message</label><textarea id="cMsg" placeholder="Shown on every screen"></textarea></div>
-        <button class="btn blue full" id="sendCustom">▶ Send to all displays</button>
+        <div class="row" style="margin-bottom:12px">
+          <button class="btn blue" id="sendCustom" style="flex:1">▶ Send to all displays</button>
+          <button class="btn ghost" id="saveBroadcast" title="Save this message to reuse later">💾 Save</button>
+        </div>
+        <div id="savedBroadcasts" class="saved-list"></div>
       </div>
 
       <!-- Setup help -->
@@ -102,6 +116,7 @@
       </div>
       <div class="row" style="margin-top:14px">
         <button class="btn ghost small" id="addRow">+ Add time</button>
+        <button class="btn ghost small" id="sortRows">↕ Sort by time</button>
         <button class="btn gold small" id="saveSched">Save schedule</button>
       </div>
     </div>
@@ -123,7 +138,9 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const GROUPS = { 'Mon–Thu': [1,2,3,4], 'Fri': [5], 'Sat': [6], 'Sun': [0], 'Every day': [0,1,2,3,4,5,6] };
+const GROUPS = { 'Mon–Thu': [1,2,3,4], 'Mon–Fri': [1,2,3,4,5], 'Fri': [5], 'Sat': [6], 'Sun': [0], 'Every day': [0,1,2,3,4,5,6] };
+const TYPE_OPTS = '<option value="lesson">Lesson</option><option value="salah">Salah</option><option value="naseehah">Naseehah</option>';
+const SOUND_OPTS = '<option value="bell">Bell</option><option value="adhan">Adhan</option><option value="chime">Chime</option>';
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -193,8 +210,8 @@ function addEventRow(tbody, ev = {}, withDays = true) {
   const mk = (cls, el) => { const td = document.createElement('td'); el.classList.add(cls); td.appendChild(el); return td; };
   const time = document.createElement('input'); time.type = 'time'; time.value = ev.time || '12:00'; time.style.width = '132px';
   const title = document.createElement('input'); title.type = 'text'; title.value = ev.title || ''; title.placeholder = 'Title'; title.style.minWidth = '120px';
-  const type = document.createElement('select'); type.innerHTML = '<option value="lesson">Lesson</option><option value="salah">Salah</option>'; type.value = ev.type || 'lesson';
-  const sound = document.createElement('select'); sound.innerHTML = '<option value="bell">Bell</option><option value="adhan">Adhan</option>'; sound.value = ev.sound || 'bell';
+  const type = document.createElement('select'); type.innerHTML = TYPE_OPTS; type.value = ev.type || 'lesson';
+  const sound = document.createElement('select'); sound.innerHTML = SOUND_OPTS; sound.value = ev.sound || 'bell';
   tr.append(mk('f-time', time), mk('f-title', title), mk('f-type', type), mk('f-sound', sound));
   if (withDays) {
     const tdDays = document.createElement('td');
@@ -248,12 +265,14 @@ function addOverrideBlock(ov = {}) {
   if (ov.id) block.dataset.id = ov.id;
   const head = document.createElement('div'); head.className = 'override-head';
   head.innerHTML = `
-    <div style="width:150px"><label>Date</label><input type="date" class="o-date"></div>
-    <div style="flex:1;min-width:140px"><label>Name</label><input type="text" class="o-label" placeholder="e.g. Eid, Exam day"></div>
+    <div style="width:150px"><label>From date</label><input type="date" class="o-date"></div>
+    <div style="width:150px"><label>To date (optional)</label><input type="date" class="o-end"></div>
+    <div style="flex:1;min-width:130px"><label>Name</label><input type="text" class="o-label" placeholder="e.g. Eid, Summer Break"></div>
     <div style="width:180px"><label>What happens</label><select class="o-mode"><option value="off">No alerts (holiday)</option><option value="custom">Custom timetable</option></select></div>
     <button class="btn danger small o-del">Remove</button>`;
   block.appendChild(head);
   head.querySelector('.o-date').value = ov.date || '';
+  head.querySelector('.o-end').value = ov.endDate || '';
   head.querySelector('.o-label').value = ov.label || '';
   head.querySelector('.o-mode').value = ov.mode === 'custom' ? 'custom' : 'off';
   const custom = document.createElement('div'); custom.className = 'o-custom'; custom.style.marginTop = '12px';
@@ -274,7 +293,7 @@ function collectOverrides() {
     const mode = block.querySelector('.o-mode').value;
     return {
       id: block.dataset.id || undefined, date: block.querySelector('.o-date').value,
-      label: block.querySelector('.o-label').value, mode,
+      endDate: block.querySelector('.o-end').value, label: block.querySelector('.o-label').value, mode,
       events: mode === 'custom' ? collectEvents(block.querySelector('.o-body'), false) : [],
     };
   }).filter((o) => o.date);
@@ -289,19 +308,108 @@ $('saveSched').addEventListener('click', async () => {
   toast(data.ok ? 'Schedule saved ✓' : 'Save failed: ' + (data.error || ''));
 });
 
-async function loadSchedule() {
-  const r = await fetch('/api/schedule'); const { schedule } = await r.json();
-  $('schedEnabled').checked = schedule.enabled !== false;
-  $('schedBody').innerHTML = ''; (schedule.events || []).forEach((ev) => addEventRow($('schedBody'), ev));
-  $('overrideList').innerHTML = ''; (schedule.overrides || []).forEach((ov) => addOverrideBlock(ov));
+// Sort the visible schedule rows by their time value.
+function sortRows() {
+  const rows = [...$('schedBody').children];
+  rows.sort((a, b) => a.querySelector('.f-time').value.localeCompare(b.querySelector('.f-time').value));
+  rows.forEach((r) => $('schedBody').appendChild(r));
   applyDayFilter();
 }
+$('sortRows').addEventListener('click', sortRows);
+
+// ---------- Today's schedule (computed from the saved schedule) ----------
+let currentSchedule = null;
+const TYPE_ICON = { salah: '🕌', naseehah: '📿', lesson: '🔔' };
+function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function overrideForToday(s, now) {
+  const t = ymd(now);
+  return (s.overrides || []).find((o) => o.date && t >= o.date && t <= ((o.endDate && o.endDate >= o.date) ? o.endDate : o.date));
+}
+function eventsForToday(s, now) {
+  const ov = overrideForToday(s, now);
+  let evs = s.events || [];
+  if (ov) { if (ov.mode === 'off') return { events: [], note: ov.label || 'No alerts (holiday)' }; if (ov.mode === 'custom') evs = ov.events || []; }
+  const wd = now.getDay();
+  const list = evs.filter((e) => !Array.isArray(e.days) || e.days.length === 0 || e.days.includes(wd))
+                  .slice().sort((a, b) => a.time.localeCompare(b.time));
+  return { events: list, note: ov ? (ov.label || 'Special day') : '' };
+}
+function renderToday() {
+  if (!currentSchedule) return;
+  const now = new Date();
+  $('todayDate').textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const box = $('todayList');
+  if (currentSchedule.enabled === false) { box.innerHTML = '<span class="muted">Schedule is turned off.</span>'; return; }
+  const { events, note } = eventsForToday(currentSchedule, now);
+  if (events.length === 0) { box.innerHTML = '<span class="muted">No alerts today' + (note ? ' — ' + note : '') + '.</span>'; return; }
+  const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  let nextIdx = events.findIndex((e) => e.time > hhmm);
+  box.innerHTML = (note ? '<div class="muted" style="margin-bottom:8px">📌 ' + note + '</div>' : '') +
+    events.map((e, i) => {
+      const past = e.time <= hhmm;
+      const isNext = i === nextIdx;
+      return `<div class="today-item ${past ? 'past' : ''} ${isNext ? 'next' : ''}">
+        <span class="t-time">${e.time}</span>
+        <span class="t-ico">${TYPE_ICON[e.type] || '🔔'}</span>
+        <span class="t-title">${(e.title || '').replace(/</g,'&lt;')}</span>
+        ${isNext ? '<span class="t-badge">Next</span>' : ''}
+      </div>`;
+    }).join('');
+}
+setInterval(renderToday, 15000);
+
+async function loadSchedule() {
+  const r = await fetch('/api/schedule'); const { schedule } = await r.json();
+  currentSchedule = schedule;
+  $('schedEnabled').checked = schedule.enabled !== false;
+  $('schedBody').innerHTML = '';
+  (schedule.events || []).slice().sort((a,b)=>(a.time||'').localeCompare(b.time||'')).forEach((ev) => addEventRow($('schedBody'), ev));
+  $('overrideList').innerHTML = ''; (schedule.overrides || []).forEach((ov) => addOverrideBlock(ov));
+  applyDayFilter();
+  renderToday();
+}
+
+// ---------- Saved broadcasts ----------
+let savedBroadcasts = [];
+function renderSavedBroadcasts() {
+  const box = $('savedBroadcasts');
+  if (savedBroadcasts.length === 0) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="muted" style="margin:6px 0 6px">Saved broadcasts (click to send):</div>' +
+    savedBroadcasts.map((b, i) =>
+      `<span class="saved-chip" data-i="${i}">${TYPE_ICON[b.type] || '🔔'} ${(b.title||'Untitled').replace(/</g,'&lt;')}<span class="x" data-del="${i}">✕</span></span>`
+    ).join('');
+  box.querySelectorAll('.saved-chip').forEach((chip) => {
+    chip.addEventListener('click', (e) => {
+      if (e.target.dataset.del !== undefined) return;
+      const b = savedBroadcasts[chip.dataset.i];
+      trigger({ type: b.type, title: b.title, message: b.message, sound: b.sound, duration: b.duration });
+    });
+  });
+  box.querySelectorAll('.x').forEach((x) => x.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    savedBroadcasts.splice(Number(x.dataset.del), 1);
+    await persistBroadcasts(); renderSavedBroadcasts();
+  }));
+}
+async function persistBroadcasts() {
+  await fetch('/api/broadcasts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ broadcasts: savedBroadcasts }) });
+}
+async function loadBroadcasts() {
+  try { const r = await fetch('/api/broadcasts'); savedBroadcasts = (await r.json()).broadcasts || []; } catch (e) {}
+  renderSavedBroadcasts();
+}
+$('saveBroadcast').addEventListener('click', async () => {
+  const b = { title: $('cTitle').value || 'Untitled', type: $('cType').value, sound: $('cSound').value, message: $('cMsg').value, duration: Number($('cDuration').value) || 30 };
+  savedBroadcasts.push(b);
+  await persistBroadcasts(); renderSavedBroadcasts(); toast('Broadcast saved ✓');
+});
 
 async function refreshStatus() {
   try { const r = await fetch('/api/status'); $('displayCount').textContent = (await r.json()).count; } catch (e) {}
 }
 setInterval(refreshStatus, 3000);
 loadSchedule();
+loadBroadcasts();
 refreshStatus();
 </script>
 </body>
