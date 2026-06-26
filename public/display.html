@@ -21,6 +21,11 @@
     </div>
   </div>
 
+  <aside class="upcoming" id="upcoming" hidden>
+    <div class="up-title">Upcoming</div>
+    <div class="up-list" id="upList"></div>
+  </aside>
+
   <div class="screen-center">
     <div class="clock" id="clock">--:--</div>
     <div class="date-greg" id="dateGreg"></div>
@@ -34,12 +39,12 @@
     </div>
     <div class="foot-block right">
       <div class="lbl">Next Bell</div>
-      <div class="val bell" id="nextBell">🔔 —</div>
+      <div class="val bell" id="nextBell">—</div>
     </div>
   </div>
 </div>
 
-<button class="enable-btn" id="enableBtn">🔔 Tap to enable sound</button>
+<button class="enable-btn" id="enableBtn">Tap to enable sound</button>
 
 <div class="chooser" id="chooser">
   <div class="chooser-card">
@@ -47,17 +52,17 @@
     <h2>Who is this screen for?</h2>
     <p>Choose so you only get the right alerts. You can change it later from the top bar.</p>
     <div class="chooser-opts">
-      <button data-group="all"><span>🖥️</span> Classroom screen <small>Shows every alert</small></button>
-      <button data-group="fulltime"><span>🎓</span> Full-time student <small>Full-time alerts + general</small></button>
-      <button data-group="parttime"><span>🕑</span> Part-time student <small>Part-time alerts + general</small></button>
-      <button data-group="teacher"><span>🧑‍🏫</span> Teacher <small>Teacher alerts + general</small></button>
+      <button data-group="all"><span class="ic"></span> Classroom screen <small>Shows every alert</small></button>
+      <button data-group="fulltime"><span class="ic"></span> Full-time student <small>Full-time alerts + general</small></button>
+      <button data-group="parttime"><span class="ic"></span> Part-time student <small>Part-time alerts + general</small></button>
+      <button data-group="teacher"><span class="ic"></span> Teacher <small>Teacher alerts + general</small></button>
     </div>
   </div>
 </div>
 
 <div class="overlay" id="overlay">
   <div class="alert-card">
-    <div class="alert-icon" id="ovIcon">🔔</div>
+    <div class="alert-icon" id="ovIcon"></div>
     <div class="alert-title" id="ovTitle">Alert</div>
     <div class="alert-msg" id="ovMsg"></div>
     <button class="alert-dismiss" id="dismissBtn">Dismiss</button>
@@ -68,6 +73,12 @@
 <script>
 const $ = (id) => document.getElementById(id);
 let soundEnabled = false;
+
+// Icons / labels — glyphs intentionally blank; new icons to be supplied.
+const TYPES = ['salah', 'naseehah', 'lesson'];
+const TYPE_ICON = { salah: '', naseehah: '', lesson: '' };
+const TITLES = { salah: 'Salah Time', naseehah: 'Naseehah', lesson: 'Lesson' };
+const GROUP_LABEL = { all: 'Classroom', fulltime: 'Full-time', parttime: 'Part-time', teacher: 'Teacher' };
 
 // --- Hijri date (built into modern browsers, works offline) ---
 let hijriFmt = null, hijriShort = null;
@@ -106,13 +117,19 @@ async function loadSchedule() {
   updatePeriods();
 }
 function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+// Only show what THIS screen's group would actually receive.
+function groupOK(e) {
+  const g = currentGroup || 'all';
+  return g === 'all' || !Array.isArray(e.groups) || e.groups.length === 0 || e.groups.includes(g);
+}
 function eventsForToday(now) {
   if (!schedule) return [];
-  const ov = (schedule.overrides || []).find((o) => o.date === ymd(now));
+  const t = ymd(now);
+  const ov = (schedule.overrides || []).find((o) => o.date && t >= o.date && t <= ((o.endDate && o.endDate >= o.date) ? o.endDate : o.date));
   let evs = schedule.events || [];
   if (ov) { if (ov.mode === 'off') return []; if (ov.mode === 'custom') evs = ov.events || []; }
   const wd = now.getDay();
-  return evs.filter((e) => !Array.isArray(e.days) || e.days.length === 0 || e.days.includes(wd))
+  return evs.filter((e) => (!Array.isArray(e.days) || e.days.length === 0 || e.days.includes(wd)) && groupOK(e))
             .slice().sort((a, b) => a.time.localeCompare(b.time));
 }
 function updatePeriods() {
@@ -125,7 +142,20 @@ function updatePeriods() {
     else { next = e; break; }
   }
   $('currentPeriod').textContent = current ? current.title : '—';
-  $('nextBell').innerHTML = next ? `🔔 ${next.time}` : '🔔 —';
+  $('nextBell').textContent = next ? next.time : '—';
+  renderUpcoming(evs, hhmm);
+}
+function renderUpcoming(evs, hhmm) {
+  const panel = $('upcoming');
+  const upcoming = evs.filter((e) => e.time >= hhmm);
+  if (upcoming.length === 0) { panel.hidden = true; return; }
+  panel.hidden = false;
+  $('upList').innerHTML = upcoming.slice(0, 5).map((e, i) =>
+    `<div class="up-item ${i === 0 ? 'next' : ''}">
+      <span class="u-time">${e.time}</span>
+      <span class="u-ico">${TYPE_ICON[e.type] || ''}</span>
+      <span class="u-title">${(e.title || '').replace(/</g, '&lt;')}</span>
+    </div>`).join('');
 }
 setInterval(updatePeriods, 20000);
 loadSchedule();
@@ -137,15 +167,12 @@ $('enableBtn').addEventListener('click', () => {
   try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
 });
 
-const ICONS = { salah: '🕌', naseehah: '📿', lesson: '🔔' };
-const TITLES = { salah: 'Salah Time', naseehah: 'Naseehah', lesson: 'Lesson' };
-
 // --- Alert overlay ---
 function showAlert(a) {
-  const type = ICONS[a.type] ? a.type : 'lesson';
+  const type = TYPES.includes(a.type) ? a.type : 'lesson';
   const ov = $('overlay');
   ov.className = 'overlay show ' + type;
-  $('ovIcon').textContent = ICONS[type];
+  $('ovIcon').textContent = TYPE_ICON[type];
   $('ovTitle').textContent = a.title || TITLES[type];
   $('ovMsg').textContent = a.message || '';
   if (soundEnabled) MClockAudio.play(a.sound || 'bell', a.duration || 30);
@@ -162,7 +189,6 @@ function hideAlert() { $('overlay').className = 'overlay'; MClockAudio.stop(); }
 $('dismissBtn').addEventListener('click', hideAlert);
 
 // --- Audience group (full-time / part-time / teacher / classroom) ---
-const GROUP_LABEL = { all: '🖥️ Classroom', fulltime: '🎓 Full-time', parttime: '🕑 Part-time', teacher: '🧑‍🏫 Teacher' };
 const name = new URLSearchParams(location.search).get('name') || ('Display ' + Math.floor(Math.random() * 900 + 100));
 let currentGroup = new URLSearchParams(location.search).get('group') || localStorage.getItem('mclock_group') || '';
 let es = null;

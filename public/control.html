@@ -16,15 +16,15 @@
       <div><b>m-clock</b><span>Control Panel</span></div>
     </div>
     <nav class="nav" id="nav">
-      <a data-target="card-actions" class="active"><span class="ic">⚡</span> Dashboard</a>
-      <a data-target="card-schedule"><span class="ic">📅</span> Schedule</a>
-      <a data-target="card-overrides"><span class="ic">🗓️</span> Special Dates</a>
-      <a data-target="card-custom"><span class="ic">📣</span> Broadcast</a>
-      <a data-target="card-help"><span class="ic">⚙️</span> Setup</a>
+      <a data-target="card-actions" class="active"><span class="ic"></span> Dashboard</a>
+      <a data-target="card-schedule"><span class="ic"></span> Schedule</a>
+      <a data-target="card-overrides"><span class="ic"></span> Special Dates</a>
+      <a data-target="card-custom"><span class="ic"></span> Broadcast</a>
+      <a data-target="card-help"><span class="ic"></span> Setup</a>
     </nav>
     <div class="spacer"></div>
     <div class="side-foot">
-      <a class="nav-foot" href="/" target="_blank" style="color:rgba(244,240,230,.75); padding:11px 14px; font-weight:600; font-size:14px;"><span class="ic">🖥️</span> Open a Display</a>
+      <a class="nav-foot" href="/" target="_blank" style="color:rgba(244,240,230,.75); padding:11px 14px; font-weight:600; font-size:14px;"><span class="ic"></span> Open a Display</a>
     </div>
   </aside>
 
@@ -57,12 +57,12 @@
         </div>
       </div>
       <div class="actions">
-        <button class="action salah" data-type="salah" data-title="Salah Time" data-msg="حَيَّ عَلَى الصَّلَاة" data-sound="adhan"><span class="emoji">🕌</span>Salah<small>Adhan</small></button>
-        <button class="action naseehah" data-type="naseehah" data-title="Naseehah" data-msg="A short reminder, in shā’ Allāh" data-sound="chime"><span class="emoji">📿</span>Naseehah<small>Chime</small></button>
-        <button class="action" data-type="lesson" data-title="Lesson Starting" data-msg="Please be seated" data-sound="bell"><span class="emoji">📚</span>Class Start<small>Bell</small></button>
-        <button class="action" data-type="lesson" data-title="End of Lesson" data-msg="Please pack away" data-sound="bell"><span class="emoji">🔔</span>End Lesson<small>Bell</small></button>
-        <button class="action" data-type="lesson" data-title="Break Time" data-msg="Enjoy your break" data-sound="bell"><span class="emoji">☕</span>Break<small>Bell</small></button>
-        <button class="action danger" id="stopBtn"><span class="emoji">⏹</span>Stop<small>Clear screens</small></button>
+        <button class="action salah" data-type="salah" data-title="Salah Time" data-msg="حَيَّ عَلَى الصَّلَاة" data-sound="adhan"><span class="emoji"></span>Salah<small>Adhan</small></button>
+        <button class="action naseehah" data-type="naseehah" data-title="Naseehah" data-msg="A short reminder, in shā’ Allāh" data-sound="chime"><span class="emoji"></span>Naseehah<small>Chime</small></button>
+        <button class="action" data-type="lesson" data-title="Lesson Starting" data-msg="Please be seated" data-sound="bell"><span class="emoji"></span>Class Start<small>Bell</small></button>
+        <button class="action" data-type="lesson" data-title="End of Lesson" data-msg="Please pack away" data-sound="bell"><span class="emoji"></span>End Lesson<small>Bell</small></button>
+        <button class="action" data-type="lesson" data-title="Break Time" data-msg="Enjoy your break" data-sound="bell"><span class="emoji"></span>Break<small>Bell</small></button>
+        <button class="action danger" id="stopBtn"><span class="emoji"></span>Stop<small>Clear screens</small></button>
       </div>
     </div>
 
@@ -96,8 +96,8 @@
           </div>
         </div>
         <div class="row" style="margin-bottom:12px">
-          <button class="btn blue" id="sendCustom" style="flex:1">▶ Send to all displays</button>
-          <button class="btn ghost" id="saveBroadcast" title="Save this message to reuse later">💾 Save</button>
+          <button class="btn blue" id="sendCustom" style="flex:1">Send to all displays</button>
+          <button class="btn ghost" id="saveBroadcast" title="Save this message to reuse later">Save</button>
         </div>
         <div id="savedBroadcasts" class="saved-list"></div>
       </div>
@@ -114,7 +114,11 @@
     <div class="card" id="card-schedule">
       <div class="card-head">
         <h2><span class="bar"></span> Weekly Bell Schedule</h2>
-        <label class="switch"><input type="checkbox" id="schedEnabled" /> Enabled</label>
+        <div class="row" style="gap:8px">
+          <label class="switch"><input type="checkbox" id="schedEnabled" /> Enabled</label>
+          <button class="btn ghost small" id="addRow">Add time</button>
+          <button class="btn gold small" id="saveSched">Save schedule</button>
+        </div>
       </div>
       <div class="tabs" id="dayFilter">
         <span class="tab active" data-day="all">All</span>
@@ -126,14 +130,17 @@
       </div>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th>Runs on</th><th>Audience</th><th></th></tr></thead>
+          <thead><tr>
+            <th class="sortable" data-sort="time">Time <span class="arr"></span></th>
+            <th class="sortable" data-sort="title">Title <span class="arr"></span></th>
+            <th class="sortable" data-sort="type">Type <span class="arr"></span></th>
+            <th class="sortable" data-sort="sound">Sound <span class="arr"></span></th>
+            <th class="sortable" data-sort="days">Runs on <span class="arr"></span></th>
+            <th class="sortable" data-sort="audience">Audience <span class="arr"></span></th>
+            <th></th>
+          </tr></thead>
           <tbody id="schedBody"></tbody>
         </table>
-      </div>
-      <div class="row" style="margin-top:14px">
-        <button class="btn ghost small" id="addRow">+ Add time</button>
-        <button class="btn ghost small" id="sortRows">↕ Sort by time</button>
-        <button class="btn gold small" id="saveSched">Save schedule</button>
       </div>
     </div>
 
@@ -348,21 +355,47 @@ $('saveSched').addEventListener('click', async () => {
   const body = { enabled: $('schedEnabled').checked, events: collectEvents($('schedBody')), overrides: collectOverrides() };
   const r = await fetch('/api/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await r.json();
-  toast(data.ok ? 'Schedule saved ✓' : 'Save failed: ' + (data.error || ''));
+  toast(data.ok ? 'Schedule saved' : 'Save failed: ' + (data.error || ''));
 });
 
-// Sort the visible schedule rows by their time value.
-function sortRows() {
+// ---------- Click-to-sort schedule headers (click again to reverse) ----------
+let sortKey = 'time', sortDir = 1;
+function rowValue(tr, key) {
+  switch (key) {
+    case 'time': return tr.querySelector('.f-time').value;
+    case 'title': return tr.querySelector('.f-title').value.toLowerCase();
+    case 'type': return tr.querySelector('.f-type').value;
+    case 'sound': return tr.querySelector('.f-sound').value;
+    case 'days': {
+      const on = [...tr.querySelectorAll('.day')].filter((d) => d.classList.contains('on')).map((d) => Number(d.dataset.day));
+      return on.length === 0 ? -1 : Math.min(...on); // "every day" sorts first
+    }
+    case 'audience': return readAudMini(tr.querySelector('.f-aud')).sort().join(',');
+  }
+  return '';
+}
+function sortBy(key, dir) {
+  if (dir === undefined) { sortDir = (key === sortKey) ? -sortDir : 1; } else { sortDir = dir; }
+  sortKey = key;
   const rows = [...$('schedBody').children];
-  rows.sort((a, b) => a.querySelector('.f-time').value.localeCompare(b.querySelector('.f-time').value));
+  rows.sort((a, b) => {
+    const va = rowValue(a, key), vb = rowValue(b, key);
+    if (va < vb) return -sortDir;
+    if (va > vb) return sortDir;
+    return 0;
+  });
   rows.forEach((r) => $('schedBody').appendChild(r));
+  document.querySelectorAll('#card-schedule th.sortable').forEach((th) => {
+    const arr = th.querySelector('.arr');
+    arr.textContent = th.dataset.sort === key ? (sortDir > 0 ? '▲' : '▼') : '';
+  });
   applyDayFilter();
 }
-$('sortRows').addEventListener('click', sortRows);
+document.querySelectorAll('#card-schedule th.sortable').forEach((th) => th.addEventListener('click', () => sortBy(th.dataset.sort)));
 
 // ---------- Today's schedule (computed from the saved schedule) ----------
 let currentSchedule = null;
-const TYPE_ICON = { salah: '🕌', naseehah: '📿', lesson: '🔔' };
+const TYPE_ICON = { salah: '', naseehah: '', lesson: '' }; // icons to be supplied
 function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function overrideForToday(s, now) {
   const t = ymd(now);
@@ -387,13 +420,13 @@ function renderToday() {
   if (events.length === 0) { box.innerHTML = '<span class="muted">No alerts today' + (note ? ' — ' + note : '') + '.</span>'; return; }
   const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   let nextIdx = events.findIndex((e) => e.time > hhmm);
-  box.innerHTML = (note ? '<div class="muted" style="margin-bottom:8px">📌 ' + note + '</div>' : '') +
+  box.innerHTML = (note ? '<div class="muted" style="margin-bottom:8px">' + note + '</div>' : '') +
     events.map((e, i) => {
       const past = e.time <= hhmm;
       const isNext = i === nextIdx;
       return `<div class="today-item ${past ? 'past' : ''} ${isNext ? 'next' : ''}">
         <span class="t-time">${e.time}</span>
-        <span class="t-ico">${TYPE_ICON[e.type] || '🔔'}</span>
+        <span class="t-ico">${TYPE_ICON[e.type] || ''}</span>
         <span class="t-title">${(e.title || '').replace(/</g,'&lt;')}</span>
         ${isNext ? '<span class="t-badge">Next</span>' : ''}
       </div>`;
@@ -419,7 +452,7 @@ function renderSavedBroadcasts() {
   if (savedBroadcasts.length === 0) { box.innerHTML = ''; return; }
   box.innerHTML = '<div class="muted" style="margin:6px 0 6px">Saved broadcasts (click to send):</div>' +
     savedBroadcasts.map((b, i) =>
-      `<span class="saved-chip" data-i="${i}">${TYPE_ICON[b.type] || '🔔'} ${(b.title||'Untitled').replace(/</g,'&lt;')}<span class="x" data-del="${i}">✕</span></span>`
+      `<span class="saved-chip" data-i="${i}">${(b.title||'Untitled').replace(/</g,'&lt;')}<span class="x" data-del="${i}">✕</span></span>`
     ).join('');
   box.querySelectorAll('.saved-chip').forEach((chip) => {
     chip.addEventListener('click', (e) => {
@@ -444,7 +477,7 @@ async function loadBroadcasts() {
 $('saveBroadcast').addEventListener('click', async () => {
   const b = { title: $('cTitle').value || 'Untitled', type: $('cType').value, sound: $('cSound').value, message: $('cMsg').value, duration: Number($('cDuration').value) || 30, groups: readAud($('audCustom')) };
   savedBroadcasts.push(b);
-  await persistBroadcasts(); renderSavedBroadcasts(); toast('Broadcast saved ✓');
+  await persistBroadcasts(); renderSavedBroadcasts(); toast('Broadcast saved');
 });
 
 async function refreshStatus() {
@@ -453,7 +486,7 @@ async function refreshStatus() {
     $('displayCount').textContent = data.count;
     const bg = data.byGroup || {};
     const parts = [];
-    if (bg.all) parts.push('🖥️ ' + bg.all);
+    if (bg.all) parts.push('Screens ' + bg.all);
     if (bg.fulltime) parts.push('FT ' + bg.fulltime);
     if (bg.parttime) parts.push('PT ' + bg.parttime);
     if (bg.teacher) parts.push('Tr ' + bg.teacher);

@@ -16,7 +16,7 @@
   </div>
 
   <div class="w-banner" id="banner">
-    <div class="w-banner-ico" id="bIco">🔔</div>
+    <div class="w-banner-ico" id="bIco"></div>
     <div><div class="w-banner-title" id="bTitle"></div><div class="w-banner-msg" id="bMsg"></div></div>
     <button id="bDismiss">✕</button>
   </div>
@@ -24,7 +24,7 @@
   <div class="w-sub">Upcoming today</div>
   <div class="w-list" id="wList"><span class="muted">Loading…</span></div>
 
-  <button class="w-enable" id="enableBtn">🔔 Tap to enable sound &amp; alerts</button>
+  <button class="w-enable" id="enableBtn">Tap to enable sound &amp; alerts</button>
 </div>
 
 <div class="chooser" id="chooser">
@@ -33,10 +33,10 @@
     <h2>Who are you?</h2>
     <p>You'll only get the alerts meant for you.</p>
     <div class="chooser-opts">
-      <button data-group="fulltime"><span>🎓</span> Full-time student <small>Full-time + general</small></button>
-      <button data-group="parttime"><span>🕑</span> Part-time student <small>Part-time + general</small></button>
-      <button data-group="teacher"><span>🧑‍🏫</span> Teacher <small>Teacher + general</small></button>
-      <button data-group="all"><span>🖥️</span> Everything <small>All alerts</small></button>
+      <button data-group="fulltime"><span class="ic"></span> Full-time student <small>Full-time + general</small></button>
+      <button data-group="parttime"><span class="ic"></span> Part-time student <small>Part-time + general</small></button>
+      <button data-group="teacher"><span class="ic"></span> Teacher <small>Teacher + general</small></button>
+      <button data-group="all"><span class="ic"></span> Everything <small>All alerts</small></button>
     </div>
   </div>
 </div>
@@ -45,8 +45,8 @@
 <script>
 const $ = (id) => document.getElementById(id);
 let soundEnabled = false;
-const GROUP_LABEL = { all: '🖥️ All', fulltime: '🎓 Full-time', parttime: '🕑 Part-time', teacher: '🧑‍🏫 Teacher' };
-const TYPE_ICON = { salah: '🕌', naseehah: '📿', lesson: '🔔' };
+const GROUP_LABEL = { all: 'All', fulltime: 'Full-time', parttime: 'Part-time', teacher: 'Teacher' };
+const TYPE_ICON = { salah: '', naseehah: '', lesson: '' }; // icons to be supplied
 
 // Allow the desktop app to inject a fixed server URL; default to same origin.
 const SERVER = (window.MCLOCK_SERVER || '').replace(/\/$/, '');
@@ -86,7 +86,7 @@ function renderList() {
   const upcoming = evs.filter((e)=>e.time >= hhmm);
   if (upcoming.length === 0) { box.innerHTML = '<span class="muted">Nothing more today.</span>'; return; }
   box.innerHTML = upcoming.slice(0, 6).map((e,i)=>`<div class="w-item ${i===0?'next':''}">
-    <span class="t">${e.time}</span><span>${TYPE_ICON[e.type]||'🔔'}</span>
+    <span class="t">${e.time}</span><span>${TYPE_ICON[e.type]||''}</span>
     <span class="ti">${(e.title||'').replace(/</g,'&lt;')}</span>${i===0?'<span class="nx">Next</span>':''}</div>`).join('');
 }
 setInterval(renderList, 15000);
@@ -110,7 +110,7 @@ $('enableBtn').addEventListener('click', () => {
 });
 let bannerTimer = null;
 function showAlert(a) {
-  const type = TYPE_ICON[a.type] ? a.type : 'lesson';
+  const type = ['salah','naseehah','lesson'].includes(a.type) ? a.type : 'lesson';
   const b = $('banner'); b.className = 'w-banner show ' + type;
   $('bIco').textContent = TYPE_ICON[type];
   $('bTitle').textContent = a.title || ''; $('bMsg').textContent = a.message || '';
