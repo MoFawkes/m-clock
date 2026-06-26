@@ -7,115 +7,143 @@
 <link rel="icon" href="/assets/logo.jpg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
-<body>
-  <div class="status-line">
-    <span class="dot" id="dot"></span>
-    <span id="statusText">Connecting…</span>
-  </div>
-
-  <div class="display">
+<body style="background:#0c1b38">
+<div class="screen">
+  <div class="screen-top">
     <div class="brand-mark">
       <img src="/assets/logo.jpg" alt="logo" />
-      <div class="name"><b>m-clock</b><span>Madrasah Bell</span></div>
+      <b>m-clock</b>
     </div>
+    <div class="top-meta">
+      <span class="net"><span class="dot" id="dot"></span><span id="statusText">Connecting…</span></span>
+      <span class="dates" id="topHijri"></span>
+    </div>
+  </div>
 
+  <div class="screen-center">
     <div class="clock" id="clock">--:--</div>
+    <div class="date-greg" id="dateGreg"></div>
+    <div class="date-hijri" id="dateHijri"></div>
+  </div>
 
-    <div class="dates">
-      <div class="date-greg" id="dateGreg"></div>
-      <div class="date-hijri" id="dateHijri"></div>
+  <div class="screen-bottom">
+    <div class="foot-block">
+      <div class="lbl">Current Period</div>
+      <div class="val" id="currentPeriod">—</div>
+    </div>
+    <div class="foot-block right">
+      <div class="lbl">Next Bell</div>
+      <div class="val bell" id="nextBell">🔔 —</div>
     </div>
   </div>
+</div>
 
-  <button class="enable-btn" id="enableBtn">🔔 Tap to enable sound</button>
+<button class="enable-btn" id="enableBtn">🔔 Tap to enable sound</button>
 
-  <div class="overlay" id="overlay">
-    <div class="icon" id="ovIcon">🔔</div>
-    <div class="title" id="ovTitle">Alert</div>
-    <div class="msg" id="ovMsg"></div>
-    <button class="dismiss" id="dismissBtn">Dismiss</button>
+<div class="overlay" id="overlay">
+  <div class="alert-card">
+    <div class="alert-icon" id="ovIcon">🔔</div>
+    <div class="alert-title" id="ovTitle">Alert</div>
+    <div class="alert-msg" id="ovMsg"></div>
+    <button class="alert-dismiss" id="dismissBtn">Dismiss</button>
   </div>
+</div>
 
-  <script src="/sounds.js"></script>
-  <script>
-    const $ = (id) => document.getElementById(id);
-    let soundEnabled = false;
+<script src="/sounds.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let soundEnabled = false;
 
-    // --- Hijri date (built into modern browsers, works offline) ---
-    let hijriFmt = null;
-    try {
-      hijriFmt = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      });
-    } catch (e) {
-      try { hijriFmt = new Intl.DateTimeFormat('en-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }); }
-      catch (e2) { hijriFmt = null; }
-    }
+// --- Hijri date (built into modern browsers, works offline) ---
+let hijriFmt = null, hijriShort = null;
+try {
+  hijriFmt = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' });
+  hijriShort = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', { day: 'numeric', month: 'short', year: 'numeric' });
+} catch (e) {
+  try { hijriFmt = new Intl.DateTimeFormat('en-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e2) {}
+}
 
-    // --- Clock + dates ---
-    let lastDay = '';
-    function tick() {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      const ss = String(now.getSeconds()).padStart(2, '0');
-      $('clock').innerHTML = `${hh}:${mm}<span class="secs">:${ss}</span>`;
+// --- Clock + dates ---
+let lastDay = '';
+function tick() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  $('clock').innerHTML = `${hh}:${mm}<span class="secs">:${ss}</span>`;
+  const dayKey = now.toDateString();
+  if (dayKey !== lastDay) {
+    lastDay = dayKey;
+    $('dateGreg').textContent = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    // The Islamic calendar formatter already appends the era (e.g. "1448 AH").
+    const ah = (s) => /AH$/.test(s) ? s : s + ' AH';
+    if (hijriFmt) { try { $('dateHijri').textContent = ah(hijriFmt.format(now)); } catch (e) {} }
+    if (hijriShort) { try { $('topHijri').textContent = ah(hijriShort.format(now)); } catch (e) {} }
+  }
+}
+setInterval(tick, 1000);
+tick();
 
-      const dayKey = now.toDateString();
-      if (dayKey !== lastDay) {
-        lastDay = dayKey;
-        $('dateGreg').textContent = now.toLocaleDateString(undefined, {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        });
-        if (hijriFmt) {
-          try { $('dateHijri').textContent = hijriFmt.format(now) + ' AH'; }
-          catch (e) { $('dateHijri').textContent = ''; }
-        }
-      }
-    }
-    setInterval(tick, 1000);
-    tick();
+// --- Current period / next bell, computed from the schedule ---
+let schedule = null;
+async function loadSchedule() {
+  try { const r = await fetch('/api/schedule'); schedule = (await r.json()).schedule; } catch (e) {}
+  updatePeriods();
+}
+function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function eventsForToday(now) {
+  if (!schedule) return [];
+  const ov = (schedule.overrides || []).find((o) => o.date === ymd(now));
+  let evs = schedule.events || [];
+  if (ov) { if (ov.mode === 'off') return []; if (ov.mode === 'custom') evs = ov.events || []; }
+  const wd = now.getDay();
+  return evs.filter((e) => !Array.isArray(e.days) || e.days.length === 0 || e.days.includes(wd))
+            .slice().sort((a, b) => a.time.localeCompare(b.time));
+}
+function updatePeriods() {
+  const now = new Date();
+  const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const evs = (schedule && schedule.enabled !== false) ? eventsForToday(now) : [];
+  let current = null, next = null;
+  for (const e of evs) {
+    if (e.time <= hhmm) current = e;
+    else { next = e; break; }
+  }
+  $('currentPeriod').textContent = current ? current.title : '—';
+  $('nextBell').innerHTML = next ? `🔔 ${next.time}` : '🔔 —';
+}
+setInterval(updatePeriods, 20000);
+loadSchedule();
+setInterval(loadSchedule, 5 * 60 * 1000); // pick up edits
 
-    // --- Enable sound (browsers require a user gesture) ---
-    $('enableBtn').addEventListener('click', () => {
-      MClockAudio.unlock();
-      soundEnabled = true;
-      $('enableBtn').classList.add('hidden');
-    });
+// --- Enable sound (browsers require a user gesture) ---
+$('enableBtn').addEventListener('click', () => {
+  MClockAudio.unlock(); soundEnabled = true; $('enableBtn').classList.add('hidden');
+});
 
-    // --- Alert overlay ---
-    function showAlert(a) {
-      const ov = $('overlay');
-      ov.className = 'overlay show ' + (a.type === 'salah' ? 'salah' : 'lesson');
-      $('ovIcon').textContent = a.type === 'salah' ? '🕌' : '🔔';
-      $('ovTitle').textContent = a.title || (a.type === 'salah' ? 'Salah Time' : 'Lesson');
-      $('ovMsg').textContent = a.message || '';
-      if (soundEnabled) MClockAudio.play(a.sound || 'bell', a.duration || 30);
-      try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
-    }
-    function hideAlert() {
-      $('overlay').className = 'overlay';
-      MClockAudio.stop();
-    }
-    $('dismissBtn').addEventListener('click', hideAlert);
+// --- Alert overlay ---
+function showAlert(a) {
+  const ov = $('overlay');
+  ov.className = 'overlay show ' + (a.type === 'salah' ? 'salah' : 'lesson');
+  $('ovIcon').textContent = a.type === 'salah' ? '🕌' : '🔔';
+  $('ovTitle').textContent = a.title || (a.type === 'salah' ? 'Salah Time' : 'Lesson');
+  $('ovMsg').textContent = a.message || '';
+  if (soundEnabled) MClockAudio.play(a.sound || 'bell', a.duration || 30);
+  try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+}
+function hideAlert() { $('overlay').className = 'overlay'; MClockAudio.stop(); }
+$('dismissBtn').addEventListener('click', hideAlert);
 
-    // --- Live connection to the main computer ---
-    const name = new URLSearchParams(location.search).get('name') ||
-                 ('Display ' + Math.floor(Math.random() * 900 + 100));
-    function connect() {
-      const es = new EventSource('/events?name=' + encodeURIComponent(name));
-      es.addEventListener('hello', () => {
-        $('dot').classList.add('on');
-        $('statusText').textContent = 'Connected — ' + name;
-      });
-      es.addEventListener('alert', (e) => showAlert(JSON.parse(e.data)));
-      es.addEventListener('stop', hideAlert);
-      es.onerror = () => {
-        $('dot').classList.remove('on');
-        $('statusText').textContent = 'Reconnecting…';
-      };
-    }
-    connect();
-  </script>
+// --- Live connection to the main computer ---
+const name = new URLSearchParams(location.search).get('name') || ('Display ' + Math.floor(Math.random() * 900 + 100));
+function connect() {
+  const es = new EventSource('/events?name=' + encodeURIComponent(name));
+  es.addEventListener('hello', () => { $('dot').classList.add('on'); $('statusText').textContent = 'Connected'; });
+  es.addEventListener('alert', (e) => showAlert(JSON.parse(e.data)));
+  es.addEventListener('stop', hideAlert);
+  es.onerror = () => { $('dot').classList.remove('on'); $('statusText').textContent = 'Reconnecting…'; };
+}
+connect();
+</script>
 </body>
 </html>
