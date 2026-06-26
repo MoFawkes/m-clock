@@ -16,6 +16,7 @@
     </div>
     <div class="top-meta">
       <span class="net"><span class="dot" id="dot"></span><span id="statusText">Connecting…</span></span>
+      <span class="group-chip" id="groupChip" title="Click to change who this screen is for">—</span>
       <span class="dates" id="topHijri"></span>
     </div>
   </div>
@@ -39,6 +40,20 @@
 </div>
 
 <button class="enable-btn" id="enableBtn">🔔 Tap to enable sound</button>
+
+<div class="chooser" id="chooser">
+  <div class="chooser-card">
+    <img src="/assets/logo.jpg" alt="logo" />
+    <h2>Who is this screen for?</h2>
+    <p>Choose so you only get the right alerts. You can change it later from the top bar.</p>
+    <div class="chooser-opts">
+      <button data-group="all"><span>🖥️</span> Classroom screen <small>Shows every alert</small></button>
+      <button data-group="fulltime"><span>🎓</span> Full-time student <small>Full-time alerts + general</small></button>
+      <button data-group="parttime"><span>🕑</span> Part-time student <small>Part-time alerts + general</small></button>
+      <button data-group="teacher"><span>🧑‍🏫</span> Teacher <small>Teacher alerts + general</small></button>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="overlay">
   <div class="alert-card">
@@ -146,16 +161,36 @@ function showAlert(a) {
 function hideAlert() { $('overlay').className = 'overlay'; MClockAudio.stop(); }
 $('dismissBtn').addEventListener('click', hideAlert);
 
-// --- Live connection to the main computer ---
+// --- Audience group (full-time / part-time / teacher / classroom) ---
+const GROUP_LABEL = { all: '🖥️ Classroom', fulltime: '🎓 Full-time', parttime: '🕑 Part-time', teacher: '🧑‍🏫 Teacher' };
 const name = new URLSearchParams(location.search).get('name') || ('Display ' + Math.floor(Math.random() * 900 + 100));
+let currentGroup = new URLSearchParams(location.search).get('group') || localStorage.getItem('mclock_group') || '';
+let es = null;
+
+function applyGroup(g) {
+  currentGroup = g;
+  localStorage.setItem('mclock_group', g);
+  $('groupChip').textContent = GROUP_LABEL[g] || g;
+  $('chooser').classList.remove('show');
+  connect();
+  loadSchedule();
+}
+$('groupChip').addEventListener('click', () => $('chooser').classList.add('show'));
+document.querySelectorAll('.chooser-opts button').forEach((b) => b.addEventListener('click', () => applyGroup(b.dataset.group)));
+
+// --- Live connection to the main computer ---
 function connect() {
-  const es = new EventSource('/events?name=' + encodeURIComponent(name));
+  if (es) es.close();
+  const q = '/events?name=' + encodeURIComponent(name) + '&group=' + encodeURIComponent(currentGroup || 'all');
+  es = new EventSource(q);
   es.addEventListener('hello', () => { $('dot').classList.add('on'); $('statusText').textContent = 'Connected'; });
   es.addEventListener('alert', (e) => showAlert(JSON.parse(e.data)));
   es.addEventListener('stop', hideAlert);
   es.onerror = () => { $('dot').classList.remove('on'); $('statusText').textContent = 'Reconnecting…'; };
 }
-connect();
+
+if (currentGroup) { applyGroup(currentGroup); }
+else { $('chooser').classList.add('show'); } // first run: ask who this screen is for
 </script>
 </body>
 </html>

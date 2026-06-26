@@ -36,7 +36,7 @@
         <div class="sub">Control bells &amp; Salah alerts across every connected computer.</div>
       </div>
       <div class="head-meta">
-        <div class="net"><span class="dot"></span> Connected displays: <b id="displayCount">0</b></div>
+        <div class="net"><span class="dot"></span> Connected: <b id="displayCount">0</b> <span class="muted" id="groupCounts"></span></div>
         <div class="clock-sm" id="clockSm">--:--</div>
       </div>
     </div>
@@ -45,7 +45,16 @@
     <div class="card" id="card-actions">
       <div class="card-head">
         <h2><span class="bar"></span> Immediate Actions</h2>
-        <span class="badge">Global broadcast</span>
+        <span class="badge">Live broadcast</span>
+      </div>
+      <div class="aud-row">
+        <span class="muted">Send to:</span>
+        <div class="aud" id="audQuick">
+          <span class="aud-pill active" data-g="">Everyone</span>
+          <span class="aud-pill" data-g="fulltime">Full-time</span>
+          <span class="aud-pill" data-g="parttime">Part-time</span>
+          <span class="aud-pill" data-g="teacher">Teachers</span>
+        </div>
       </div>
       <div class="actions">
         <button class="action salah" data-type="salah" data-title="Salah Time" data-msg="حَيَّ عَلَى الصَّلَاة" data-sound="adhan"><span class="emoji">🕌</span>Salah<small>Adhan</small></button>
@@ -77,6 +86,15 @@
           <div style="width:90px"><label>Ring (s)</label><input type="number" id="cDuration" value="30" min="3" max="600" /></div>
         </div>
         <div class="field"><label>Message</label><textarea id="cMsg" placeholder="Shown on every screen"></textarea></div>
+        <div class="aud-row">
+          <span class="muted">Send to:</span>
+          <div class="aud" id="audCustom">
+            <span class="aud-pill active" data-g="">Everyone</span>
+            <span class="aud-pill" data-g="fulltime">Full-time</span>
+            <span class="aud-pill" data-g="parttime">Part-time</span>
+            <span class="aud-pill" data-g="teacher">Teachers</span>
+          </div>
+        </div>
         <div class="row" style="margin-bottom:12px">
           <button class="btn blue" id="sendCustom" style="flex:1">▶ Send to all displays</button>
           <button class="btn ghost" id="saveBroadcast" title="Save this message to reuse later">💾 Save</button>
@@ -98,19 +116,17 @@
         <h2><span class="bar"></span> Weekly Bell Schedule</h2>
         <label class="switch"><input type="checkbox" id="schedEnabled" /> Enabled</label>
       </div>
-      <div class="row" style="margin-bottom:12px">
-        <span class="muted" style="margin-right:4px">View day:</span>
-        <div class="filter" id="dayFilter">
-          <span class="chip active" data-day="all">All</span>
-          <span class="chip" data-day="mt">Mon–Thu</span>
-          <span class="chip" data-day="5">Fri</span>
-          <span class="chip" data-day="6">Sat</span>
-          <span class="chip" data-day="0">Sun</span>
-        </div>
+      <div class="tabs" id="dayFilter">
+        <span class="tab active" data-day="all">All</span>
+        <span class="tab" data-day="mt">Mon–Thu</span>
+        <span class="tab" data-day="mf">Mon–Fri</span>
+        <span class="tab" data-day="5">Fri</span>
+        <span class="tab" data-day="6">Sat</span>
+        <span class="tab" data-day="0">Sun</span>
       </div>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th>Runs on</th><th></th></tr></thead>
+          <thead><tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th>Runs on</th><th>Audience</th><th></th></tr></thead>
           <tbody id="schedBody"></tbody>
         </table>
       </div>
@@ -139,6 +155,27 @@
 const $ = (id) => document.getElementById(id);
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const GROUPS = { 'Mon–Thu': [1,2,3,4], 'Mon–Fri': [1,2,3,4,5], 'Fri': [5], 'Sat': [6], 'Sun': [0], 'Every day': [0,1,2,3,4,5,6] };
+const AUDS = [['fulltime','FT'], ['parttime','PT'], ['teacher','Tr']];
+// Audience selector pills (single-select: Everyone / a group)
+function initAud(el) {
+  el.querySelectorAll('.aud-pill').forEach((p) => p.addEventListener('click', () => {
+    el.querySelectorAll('.aud-pill').forEach((x) => x.classList.remove('active'));
+    p.classList.add('active');
+  }));
+}
+function readAud(el) { const a = el.querySelector('.aud-pill.active'); const g = a ? a.dataset.g : ''; return g ? [g] : []; }
+// Per-row mini audience toggles (multi-select; none = everyone)
+function audMini(groups) {
+  const wrap = document.createElement('div'); wrap.className = 'aud-mini';
+  AUDS.forEach(([g, lbl]) => {
+    const s = document.createElement('span'); s.className = 'm' + ((groups || []).includes(g) ? ' on' : '');
+    s.textContent = lbl; s.dataset.g = g; s.title = g;
+    s.addEventListener('click', () => s.classList.toggle('on'));
+    wrap.appendChild(s);
+  });
+  return wrap;
+}
+function readAudMini(cell) { return [...cell.querySelectorAll('.m.on')].map((m) => m.dataset.g); }
 const TYPE_OPTS = '<option value="lesson">Lesson</option><option value="salah">Salah</option><option value="naseehah">Naseehah</option>';
 const SOUND_OPTS = '<option value="bell">Bell</option><option value="adhan">Adhan</option><option value="chime">Chime</option>';
 
@@ -169,13 +206,14 @@ async function trigger(payload) {
   toast(data.ok ? `Sent to ${data.displays} display(s)` : 'Error: ' + (data.error || 'failed'));
 }
 
+initAud($('audQuick')); initAud($('audCustom'));
 document.querySelectorAll('.action[data-type]').forEach((b) => {
-  b.addEventListener('click', () => trigger({ type: b.dataset.type, title: b.dataset.title, message: b.dataset.msg, sound: b.dataset.sound, duration: 30 }));
+  b.addEventListener('click', () => trigger({ type: b.dataset.type, title: b.dataset.title, message: b.dataset.msg, sound: b.dataset.sound, duration: 30, groups: readAud($('audQuick')) }));
 });
 $('stopBtn').addEventListener('click', async () => { await fetch('/api/stop', { method: 'POST' }); toast('Cleared all screens'); });
 $('sendCustom').addEventListener('click', () => trigger({
   type: $('cType').value, title: $('cTitle').value || 'Alert', message: $('cMsg').value,
-  sound: $('cSound').value, duration: Number($('cDuration').value) || 30,
+  sound: $('cSound').value, duration: Number($('cDuration').value) || 30, groups: readAud($('audCustom')),
 }));
 
 // ---------- Reusable event-row builder ----------
@@ -219,6 +257,7 @@ function addEventRow(tbody, ev = {}, withDays = true) {
     tdDays.appendChild(groupPresets(tr));
     tr.appendChild(tdDays);
   } else { tr.appendChild(document.createElement('td')); }
+  const tdAud = document.createElement('td'); tdAud.className = 'f-aud'; tdAud.appendChild(audMini(ev.groups)); tr.appendChild(tdAud);
   const tdDel = document.createElement('td');
   const del = document.createElement('button'); del.className = 'btn danger small'; del.textContent = '✕';
   del.addEventListener('click', () => tr.remove());
@@ -237,25 +276,29 @@ function collectEvents(tbody, withDays = true) {
       id: tr.dataset.id || undefined, time: tr.querySelector('.f-time').value,
       title: tr.querySelector('.f-title').value || 'Alert', type: tr.querySelector('.f-type').value,
       sound: tr.querySelector('.f-sound').value, message: tr.dataset.message || '', days,
+      groups: readAudMini(tr.querySelector('.f-aud')),
     };
   });
 }
 
-// ---------- View-by-day filter ----------
+// ---------- Day-group tabs (show only the selected group, time-sorted) ----------
 let activeFilter = 'all';
 function applyDayFilter() {
-  const wanted = activeFilter === 'all' ? null : (activeFilter === 'mt' ? [1,2,3,4] : [Number(activeFilter)]);
+  const wanted = activeFilter === 'all' ? null
+    : activeFilter === 'mt' ? [1,2,3,4]
+    : activeFilter === 'mf' ? [1,2,3,4,5]
+    : [Number(activeFilter)];
   [...$('schedBody').children].forEach((tr) => {
-    if (!wanted) { tr.classList.remove('row-dim'); return; }
+    if (!wanted) { tr.style.display = ''; return; }
     const on = [...tr.querySelectorAll('.day')].filter((d) => d.classList.contains('on')).map((d) => Number(d.dataset.day));
     const everyDay = on.length === 0 || on.length === 7;
-    tr.classList.toggle('row-dim', !(everyDay || wanted.some((d) => on.includes(d))));
+    tr.style.display = (everyDay || wanted.some((d) => on.includes(d))) ? '' : 'none';
   });
 }
-$('dayFilter').querySelectorAll('.chip').forEach((chip) => {
-  chip.addEventListener('click', () => {
-    $('dayFilter').querySelectorAll('.chip').forEach((c) => c.classList.remove('active'));
-    chip.classList.add('active'); activeFilter = chip.dataset.day; applyDayFilter();
+$('dayFilter').querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    $('dayFilter').querySelectorAll('.tab').forEach((c) => c.classList.remove('active'));
+    tab.classList.add('active'); activeFilter = tab.dataset.day; applyDayFilter();
   });
 });
 
@@ -276,7 +319,7 @@ function addOverrideBlock(ov = {}) {
   head.querySelector('.o-label').value = ov.label || '';
   head.querySelector('.o-mode').value = ov.mode === 'custom' ? 'custom' : 'off';
   const custom = document.createElement('div'); custom.className = 'o-custom'; custom.style.marginTop = '12px';
-  custom.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th></th><th></th></tr></thead><tbody class="o-body"></tbody></table></div>
+  custom.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Time</th><th>Title</th><th>Type</th><th>Sound</th><th></th><th>Audience</th><th></th></tr></thead><tbody class="o-body"></tbody></table></div>
     <button class="btn ghost small o-add" style="margin-top:8px">+ Add time</button>`;
   block.appendChild(custom);
   const obody = custom.querySelector('.o-body');
@@ -382,7 +425,7 @@ function renderSavedBroadcasts() {
     chip.addEventListener('click', (e) => {
       if (e.target.dataset.del !== undefined) return;
       const b = savedBroadcasts[chip.dataset.i];
-      trigger({ type: b.type, title: b.title, message: b.message, sound: b.sound, duration: b.duration });
+      trigger({ type: b.type, title: b.title, message: b.message, sound: b.sound, duration: b.duration, groups: b.groups || [] });
     });
   });
   box.querySelectorAll('.x').forEach((x) => x.addEventListener('click', async (e) => {
@@ -399,13 +442,23 @@ async function loadBroadcasts() {
   renderSavedBroadcasts();
 }
 $('saveBroadcast').addEventListener('click', async () => {
-  const b = { title: $('cTitle').value || 'Untitled', type: $('cType').value, sound: $('cSound').value, message: $('cMsg').value, duration: Number($('cDuration').value) || 30 };
+  const b = { title: $('cTitle').value || 'Untitled', type: $('cType').value, sound: $('cSound').value, message: $('cMsg').value, duration: Number($('cDuration').value) || 30, groups: readAud($('audCustom')) };
   savedBroadcasts.push(b);
   await persistBroadcasts(); renderSavedBroadcasts(); toast('Broadcast saved ✓');
 });
 
 async function refreshStatus() {
-  try { const r = await fetch('/api/status'); $('displayCount').textContent = (await r.json()).count; } catch (e) {}
+  try {
+    const data = await (await fetch('/api/status')).json();
+    $('displayCount').textContent = data.count;
+    const bg = data.byGroup || {};
+    const parts = [];
+    if (bg.all) parts.push('🖥️ ' + bg.all);
+    if (bg.fulltime) parts.push('FT ' + bg.fulltime);
+    if (bg.parttime) parts.push('PT ' + bg.parttime);
+    if (bg.teacher) parts.push('Tr ' + bg.teacher);
+    $('groupCounts').textContent = parts.length ? '(' + parts.join(' · ') + ')' : '';
+  } catch (e) {}
 }
 setInterval(refreshStatus, 3000);
 loadSchedule();

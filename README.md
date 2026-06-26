@@ -23,7 +23,14 @@ computers** automatically — for the end of a lesson, break times, or
 
 ## How to run
 
-On the **main computer**:
+On the **main computer**, the easiest way is to **double-click a launcher**
+(it starts the server and opens the control panel for you):
+
+- **Windows:** `start.bat`
+- **macOS:** `start.command`
+- **Linux:** `start.sh`
+
+Or run it from a terminal:
 
 ```bash
 node server.js
@@ -84,6 +91,26 @@ specific calendar date:
 - **No alerts (holiday)** — turns off all automatic alerts that day.
 - **Custom timetable** — runs a different set of times *instead of* the normal
   weekday schedule, just for that date.
+
+### Groups & targeting (full-time / part-time / teachers)
+Every screen belongs to a **group**: when a display (or the student app) opens,
+it picks **Full-time student**, **Part-time student**, **Teacher**, or
+**Classroom screen** (a monitor that shows everything).
+
+You can then **target** any alert:
+- **Immediate Actions** and **Custom Broadcast** have a *Send to* selector
+  (Everyone / Full-time / Part-time / Teachers).
+- **Scheduled bells** have an *Audience* column, so e.g. a part-time session
+  bell only reaches part-time students.
+
+Alerts with no target go to everyone; a *Classroom screen* always sees every
+alert. The control panel header shows how many of each group are connected.
+
+### Student app (downloadable desktop app)
+Students can install a small desktop app that shows the upcoming-notifications
+**widget** and rings + pops a notification for their group. See
+[`student-app/`](student-app/) for how to run and build installers. There is
+also a browser version of the widget at **`/widget`**.
 
 ### Dates on the display
 Every display screen shows both the normal (Gregorian) date and the Islamic

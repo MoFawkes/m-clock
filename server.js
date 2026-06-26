@@ -30,18 +30,39 @@ const BROADCASTS_FILE = path.join(__dirname, 'broadcasts.json');
 const clients = new Map();
 let nextClientId = 1;
 
-function broadcast(event, data) {
+// Known audience groups. A display belongs to exactly one; an alert may target
+// one or more (empty target = everyone). "teacher" is its own group too.
+const GROUPS = ['fulltime', 'parttime', 'teacher'];
+function normGroup(g) {
+  g = String(g || '').toLowerCase();
+  return GROUPS.includes(g) ? g : 'all';
+}
+// Sanitise a target list to known groups; empty/invalid means "everyone".
+function normTargets(groups) {
+  if (!Array.isArray(groups)) return [];
+  return groups.map((g) => String(g).toLowerCase()).filter((g) => GROUPS.includes(g));
+}
+
+// A display receives an alert when it targets everyone, or its group is
+// targeted, or it is a classroom "monitor" (group "all") that sees everything.
+function receives(c, targets) {
+  return !targets || targets.length === 0 || c.group === 'all' || targets.includes(c.group);
+}
+
+// Send to every display, or only those whose group is in `targets`.
+function broadcast(event, data, targets) {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const { res } of clients.values()) {
-    res.write(payload);
+  for (const c of clients.values()) {
+    if (receives(c, targets)) c.res.write(payload);
   }
 }
 
 /**
- * Fire an alert to every connected display.
- * @param {{type?: string, title?: string, message?: string, sound?: string, duration?: number, source?: string}} alert
+ * Fire an alert to every connected display, or only to the targeted groups.
+ * @param {{type?: string, title?: string, message?: string, sound?: string, duration?: number, source?: string, groups?: string[]}} alert
  */
 function fireAlert(alert) {
+  const targets = normTargets(alert.groups);
   const payload = {
     type: alert.type || 'lesson',
     title: alert.title || 'Alert',
@@ -49,14 +70,17 @@ function fireAlert(alert) {
     sound: alert.sound || 'bell',
     duration: Number(alert.duration) || 30,
     source: alert.source || 'manual',
+    groups: targets,
     at: Date.now(),
   };
+  const reached = [...clients.values()].filter((c) => receives(c, targets)).length;
   console.log(
     `[${new Date().toLocaleTimeString()}] ALERT (${payload.source}): ` +
-      `${payload.title} -> ${clients.size} display(s)`
+      `${payload.title} -> ${reached} display(s)` +
+      (targets.length ? ` [${targets.join(', ')}]` : '')
   );
-  broadcast('alert', payload);
-  return payload;
+  broadcast('alert', payload, targets);
+  return { payload, reached };
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +220,7 @@ function checkSchedule() {
       message: ev.message,
       sound: ev.sound,
       duration: ev.duration,
+      groups: ev.groups,
       source: 'schedule',
     });
   }
@@ -241,6 +266,7 @@ function readBody(req) {
 function serveStatic(req, res, urlPath) {
   let rel = urlPath === '/' ? '/display.html' : urlPath;
   if (rel === '/control') rel = '/control.html';
+  if (rel === '/widget') rel = '/widget.html';
   // Prevent path traversal.
   const filePath = path.join(PUBLIC_DIR, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
   if (!filePath.startsWith(PUBLIC_DIR)) {
@@ -277,8 +303,9 @@ const server = http.createServer(async (req, res) => {
 
     const id = nextClientId++;
     const name = url.searchParams.get('name') || `Display ${id}`;
-    clients.set(id, { res, name, since: Date.now() });
-    res.write(`event: hello\ndata: ${JSON.stringify({ id, name })}\n\n`);
+    const group = normGroup(url.searchParams.get('group'));
+    clients.set(id, { res, name, group, since: Date.now() });
+    res.write(`event: hello\ndata: ${JSON.stringify({ id, name, group })}\n\n`);
     broadcast('displays', { count: clients.size });
 
     const keepAlive = setInterval(() => res.write(': ping\n\n'), 20000);
@@ -294,8 +321,8 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/trigger' && req.method === 'POST') {
     try {
       const body = JSON.parse((await readBody(req)) || '{}');
-      const alert = fireAlert({ ...body, source: 'manual' });
-      return sendJson(res, 200, { ok: true, alert, displays: clients.size });
+      const { payload, reached } = fireAlert({ ...body, source: 'manual' });
+      return sendJson(res, 200, { ok: true, alert: payload, displays: reached });
     } catch (err) {
       return sendJson(res, 400, { ok: false, error: err.message });
     }
@@ -309,10 +336,13 @@ const server = http.createServer(async (req, res) => {
 
   // --- Status (for the control panel) ---
   if (pathname === '/api/status' && req.method === 'GET') {
+    const byGroup = { all: 0, fulltime: 0, parttime: 0, teacher: 0 };
+    for (const c of clients.values()) byGroup[c.group] = (byGroup[c.group] || 0) + 1;
     return sendJson(res, 200, {
       ok: true,
-      displays: [...clients.values()].map((c) => ({ name: c.name, since: c.since })),
+      displays: [...clients.values()].map((c) => ({ name: c.name, group: c.group, since: c.since })),
       count: clients.size,
+      byGroup,
       time: new Date().toISOString(),
     });
   }
@@ -335,6 +365,7 @@ const server = http.createServer(async (req, res) => {
         message: e.message || '',
         sound: SOUNDS.includes(e.sound) ? e.sound : 'bell',
         days: Array.isArray(e.days) ? e.days.map(Number).filter((d) => d >= 0 && d <= 6) : [],
+        groups: normTargets(e.groups),
       });
       // Keep each day's events ordered by time.
       const byTime = (a, b) => (a.time || '').localeCompare(b.time || '');
@@ -382,6 +413,7 @@ const server = http.createServer(async (req, res) => {
         sound: SOUNDS.includes(b.sound) ? b.sound : 'bell',
         message: (b.message || '').slice(0, 500),
         duration: Math.min(600, Math.max(3, Number(b.duration) || 30)),
+        groups: normTargets(b.groups),
       }));
       saveBroadcasts(broadcasts);
       return sendJson(res, 200, { ok: true, broadcasts });

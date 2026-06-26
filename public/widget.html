@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>m-clock — Widget</title>
+<link rel="icon" href="/assets/logo.jpg" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body class="widget-body">
+<div class="widget">
+  <div class="w-top">
+    <img src="/assets/logo.jpg" alt="logo" />
+    <div class="w-clock" id="wClock">--:--</div>
+    <span class="group-chip" id="groupChip" title="Change who this is for">—</span>
+  </div>
+
+  <div class="w-banner" id="banner">
+    <div class="w-banner-ico" id="bIco">🔔</div>
+    <div><div class="w-banner-title" id="bTitle"></div><div class="w-banner-msg" id="bMsg"></div></div>
+    <button id="bDismiss">✕</button>
+  </div>
+
+  <div class="w-sub">Upcoming today</div>
+  <div class="w-list" id="wList"><span class="muted">Loading…</span></div>
+
+  <button class="w-enable" id="enableBtn">🔔 Tap to enable sound &amp; alerts</button>
+</div>
+
+<div class="chooser" id="chooser">
+  <div class="chooser-card">
+    <img src="/assets/logo.jpg" alt="logo" />
+    <h2>Who are you?</h2>
+    <p>You'll only get the alerts meant for you.</p>
+    <div class="chooser-opts">
+      <button data-group="fulltime"><span>🎓</span> Full-time student <small>Full-time + general</small></button>
+      <button data-group="parttime"><span>🕑</span> Part-time student <small>Part-time + general</small></button>
+      <button data-group="teacher"><span>🧑‍🏫</span> Teacher <small>Teacher + general</small></button>
+      <button data-group="all"><span>🖥️</span> Everything <small>All alerts</small></button>
+    </div>
+  </div>
+</div>
+
+<script src="/sounds.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let soundEnabled = false;
+const GROUP_LABEL = { all: '🖥️ All', fulltime: '🎓 Full-time', parttime: '🕑 Part-time', teacher: '🧑‍🏫 Teacher' };
+const TYPE_ICON = { salah: '🕌', naseehah: '📿', lesson: '🔔' };
+
+// Allow the desktop app to inject a fixed server URL; default to same origin.
+const SERVER = (window.MCLOCK_SERVER || '').replace(/\/$/, '');
+const api = (p) => SERVER + p;
+
+function tickClock() {
+  const n = new Date();
+  $('wClock').textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+}
+setInterval(tickClock, 1000); tickClock();
+
+// --- Today's upcoming list ---
+let schedule = null;
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function eventsToday(s, now) {
+  const t = ymd(now);
+  const ov = (s.overrides||[]).find((o)=>o.date && t>=o.date && t<=((o.endDate&&o.endDate>=o.date)?o.endDate:o.date));
+  let evs = s.events||[];
+  if (ov){ if(ov.mode==='off') return []; if(ov.mode==='custom') evs=ov.events||[]; }
+  const wd = now.getDay();
+  // Only show what's relevant to my group (or untargeted) — like the server would deliver.
+  return evs.filter((e)=>(!Array.isArray(e.days)||e.days.length===0||e.days.includes(wd))
+                      && (!Array.isArray(e.groups)||e.groups.length===0||currentGroup==='all'||e.groups.includes(currentGroup)))
+            .slice().sort((a,b)=>a.time.localeCompare(b.time));
+}
+async function loadSchedule() {
+  try { schedule = (await (await fetch(api('/api/schedule'))).json()).schedule; } catch(e){}
+  renderList();
+}
+function renderList() {
+  if (!schedule) return;
+  const now = new Date();
+  const box = $('wList');
+  if (schedule.enabled === false) { box.innerHTML = '<span class="muted">Schedule is off.</span>'; return; }
+  const evs = eventsToday(schedule, now);
+  const hhmm = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const upcoming = evs.filter((e)=>e.time >= hhmm);
+  if (upcoming.length === 0) { box.innerHTML = '<span class="muted">Nothing more today.</span>'; return; }
+  box.innerHTML = upcoming.slice(0, 6).map((e,i)=>`<div class="w-item ${i===0?'next':''}">
+    <span class="t">${e.time}</span><span>${TYPE_ICON[e.type]||'🔔'}</span>
+    <span class="ti">${(e.title||'').replace(/</g,'&lt;')}</span>${i===0?'<span class="nx">Next</span>':''}</div>`).join('');
+}
+setInterval(renderList, 15000);
+
+// --- Group selection ---
+const name = 'Widget ' + Math.floor(Math.random()*900+100);
+let currentGroup = new URLSearchParams(location.search).get('group') || localStorage.getItem('mclock_group') || '';
+let es = null;
+function applyGroup(g) {
+  currentGroup = g; localStorage.setItem('mclock_group', g);
+  $('groupChip').textContent = GROUP_LABEL[g] || g;
+  $('chooser').classList.remove('show'); connect(); loadSchedule();
+}
+$('groupChip').addEventListener('click', () => $('chooser').classList.add('show'));
+document.querySelectorAll('.chooser-opts button').forEach((b)=>b.addEventListener('click',()=>applyGroup(b.dataset.group)));
+
+// --- Alerts ---
+$('enableBtn').addEventListener('click', () => {
+  MClockAudio.unlock(); soundEnabled = true; $('enableBtn').style.display = 'none';
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch(e){}
+});
+let bannerTimer = null;
+function showAlert(a) {
+  const type = TYPE_ICON[a.type] ? a.type : 'lesson';
+  const b = $('banner'); b.className = 'w-banner show ' + type;
+  $('bIco').textContent = TYPE_ICON[type];
+  $('bTitle').textContent = a.title || ''; $('bMsg').textContent = a.message || '';
+  if (soundEnabled) MClockAudio.play(a.sound || 'bell', a.duration || 30);
+  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(a.title || 'm-clock', { body: a.message || '', icon: '/assets/logo.jpg', tag: 'm-clock' }); } catch(e){}
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(hideAlert, Math.max(8000, (a.duration||30)*1000));
+}
+function hideAlert(){ $('banner').className = 'w-banner'; MClockAudio.stop(); }
+$('bDismiss').addEventListener('click', hideAlert);
+
+function connect() {
+  if (es) es.close();
+  es = new EventSource(api('/events?name=' + encodeURIComponent(name) + '&group=' + encodeURIComponent(currentGroup || 'all')));
+  es.addEventListener('alert', (e) => showAlert(JSON.parse(e.data)));
+  es.addEventListener('stop', hideAlert);
+}
+
+if (currentGroup) applyGroup(currentGroup); else $('chooser').classList.add('show');
+</script>
+</body>
+</html>

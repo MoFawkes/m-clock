@@ -1,0 +1,29 @@
+{
+  "name": "m-clock-student",
+  "productName": "m-clock Student",
+  "version": "1.0.0",
+  "description": "Desktop companion for m-clock — receives lesson/Salah/Naseehah alerts for your group (full-time, part-time, teacher).",
+  "main": "main.js",
+  "author": "m-clock",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "org.mclock.student",
+    "productName": "m-clock Student",
+    "files": ["main.js", "preload.js", "config.html"],
+    "directories": { "output": "dist" },
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg", "category": "public.app-category.education" },
+    "linux": { "target": "AppImage", "category": "Education" }
+  }
+}
