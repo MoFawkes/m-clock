@@ -33,10 +33,16 @@
     <div class="page-head">
       <div>
         <h1>School Overview</h1>
-        <div class="sub">Control bells &amp; Salah alerts across every connected computer.</div>
+        <div class="sub">Manage your school's live alerts and schedules.</div>
       </div>
       <div class="head-meta">
-        <div class="net"><span class="dot"></span> Connected: <b id="displayCount">0</b> <span class="muted" id="groupCounts"></span></div>
+        <div class="stats">
+          <span>Connected <b id="displayCount">0</b></span>
+          <span>Screens <b id="stScreens">0</b></span>
+          <span>FT <b id="stFT">0</b></span>
+          <span>PT <b id="stPT">0</b></span>
+          <span>Teachers <b id="stTeachers">0</b></span>
+        </div>
         <div class="clock-sm" id="clockSm">--:--</div>
       </div>
     </div>
@@ -45,10 +51,6 @@
     <div class="card" id="card-actions">
       <div class="card-head">
         <h2><span class="bar"></span> Immediate Actions</h2>
-        <span class="badge">Live broadcast</span>
-      </div>
-      <div class="aud-row">
-        <span class="muted">Send to:</span>
         <div class="aud" id="audQuick">
           <span class="aud-pill active" data-g="">Everyone</span>
           <span class="aud-pill" data-g="fulltime">Full-time</span>
@@ -66,32 +68,33 @@
       </div>
     </div>
 
-    <!-- Today's schedule -->
-    <div class="card" id="card-today">
-      <div class="card-head">
-        <h2><span class="bar"></span> Today's Schedule</h2>
-        <span class="muted" id="todayDate"></span>
+    <!-- Three-column row: today, broadcast, connected displays -->
+    <div class="trio">
+      <!-- Today's schedule -->
+      <div class="card" id="card-today">
+        <div class="card-head">
+          <h2><span class="bar"></span> Today's Schedule</h2>
+          <span class="muted" id="todayDate"></span>
+        </div>
+        <div id="todayList" class="today-list"><span class="muted">Loading…</span></div>
       </div>
-      <div id="todayList" class="today-list"><span class="muted">Loading…</span></div>
-    </div>
 
-    <div class="grid-2">
       <!-- Custom broadcast -->
       <div class="card" id="card-custom">
         <div class="card-head"><h2><span class="bar"></span> Custom Broadcast</h2></div>
         <div class="field"><label>Title</label><input type="text" id="cTitle" placeholder="e.g. Assembly Postponed" /></div>
         <div class="row" style="margin-bottom:12px">
-          <div style="flex:1; min-width:110px"><label>Type</label><select id="cType"><option value="lesson">Lesson / Bell</option><option value="salah">Salah</option><option value="naseehah">Naseehah</option></select></div>
-          <div style="flex:1; min-width:110px"><label>Sound</label><select id="cSound"><option value="bell">Bell</option><option value="adhan">Adhan</option><option value="chime">Chime</option></select></div>
-          <div style="width:90px"><label>Ring (s)</label><input type="number" id="cDuration" value="30" min="3" max="600" /></div>
+          <div style="flex:1; min-width:90px"><label>Type</label><select id="cType"><option value="lesson">Lesson / Bell</option><option value="salah">Salah</option><option value="naseehah">Naseehah</option></select></div>
+          <div style="flex:1; min-width:90px"><label>Sound</label><select id="cSound"><option value="bell">Bell</option><option value="adhan">Adhan</option><option value="chime">Chime</option></select></div>
+          <div style="width:80px"><label>Ring (s)</label><input type="number" id="cDuration" value="30" min="3" max="600" /></div>
         </div>
         <div class="field"><label>Message</label><textarea id="cMsg" placeholder="Shown on every screen"></textarea></div>
         <div class="aud-row">
           <span class="muted">Send to:</span>
           <div class="aud" id="audCustom">
             <span class="aud-pill active" data-g="">Everyone</span>
-            <span class="aud-pill" data-g="fulltime">Full-time</span>
-            <span class="aud-pill" data-g="parttime">Part-time</span>
+            <span class="aud-pill" data-g="fulltime">FT</span>
+            <span class="aud-pill" data-g="parttime">PT</span>
             <span class="aud-pill" data-g="teacher">Teachers</span>
           </div>
         </div>
@@ -102,11 +105,10 @@
         <div id="savedBroadcasts" class="saved-list"></div>
       </div>
 
-      <!-- Setup help -->
-      <div class="card" id="card-help">
-        <div class="card-head"><h2><span class="bar"></span> Connect the other computers</h2></div>
-        <p class="muted">On every other computer, open a browser and go to the address shown in the server window (looks like <b>http://192.168.x.x:3000/</b>). Then tap <b>“Enable sound”</b> once on each screen. Alerts then arrive automatically.</p>
-        <p class="muted">Tip: keep the server window open on this computer. Use <b>Open a Display</b> (bottom-left) to preview a screen.</p>
+      <!-- Connected displays -->
+      <div class="card" id="card-connected">
+        <div class="card-head"><h2><span class="bar"></span> Connected Displays</h2></div>
+        <div id="connList" class="conn-list"><span class="muted">No screens connected yet.</span></div>
       </div>
     </div>
 
@@ -152,6 +154,12 @@
       </div>
       <p class="muted" style="margin-top:-4px">On a special date you can turn off all automatic alerts, or run a different timetable just for that day. This replaces the weekly schedule for that date only. Remember to press <b>Save schedule</b> after editing.</p>
       <div id="overrideList"></div>
+    </div>
+
+    <!-- Setup help -->
+    <div class="card" id="card-help">
+      <div class="card-head"><h2><span class="bar"></span> Connect the other computers</h2></div>
+      <p class="muted">On every other computer, open a browser and go to the address shown in the server window (looks like <b>http://192.168.x.x:3000/</b>). Then tap <b>“Enable sound”</b> once on each screen. Alerts then arrive automatically. Use <b>Open a Display</b> (bottom-left) to preview a screen.</p>
     </div>
   </main>
 </div>
@@ -480,17 +488,33 @@ $('saveBroadcast').addEventListener('click', async () => {
   await persistBroadcasts(); renderSavedBroadcasts(); toast('Broadcast saved');
 });
 
+const CONN_GROUPS = [
+  ['fulltime', 'Full-time (FT)'],
+  ['parttime', 'Part-time (PT)'],
+  ['teacher', 'Teacher Staffroom'],
+  ['all', 'Classroom screens'],
+];
 async function refreshStatus() {
   try {
     const data = await (await fetch('/api/status')).json();
-    $('displayCount').textContent = data.count;
     const bg = data.byGroup || {};
-    const parts = [];
-    if (bg.all) parts.push('Screens ' + bg.all);
-    if (bg.fulltime) parts.push('FT ' + bg.fulltime);
-    if (bg.parttime) parts.push('PT ' + bg.parttime);
-    if (bg.teacher) parts.push('Tr ' + bg.teacher);
-    $('groupCounts').textContent = parts.length ? '(' + parts.join(' · ') + ')' : '';
+    $('displayCount').textContent = data.count;
+    $('stScreens').textContent = bg.all || 0;
+    $('stFT').textContent = bg.fulltime || 0;
+    $('stPT').textContent = bg.parttime || 0;
+    $('stTeachers').textContent = bg.teacher || 0;
+    if (data.count === 0) {
+      $('connList').innerHTML = '<span class="muted">No screens connected yet.</span>';
+    } else {
+      $('connList').innerHTML = CONN_GROUPS.map(([g, label]) => {
+        const n = bg[g] || 0;
+        return `<div class="conn-item ${n ? 'on' : 'off'}">
+          <span class="conn-dot"></span>
+          <span class="conn-name">${label}</span>
+          <span class="conn-count">${n} ${n === 1 ? 'screen' : 'screens'}</span>
+        </div>`;
+      }).join('');
+    }
   } catch (e) {}
 }
 setInterval(refreshStatus, 3000);
