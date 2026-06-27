@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>m-clock — Widget</title>
+<title>AQI Clock — Widget</title>
 <link rel="icon" href="/assets/logo.jpg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
@@ -115,7 +115,7 @@ function showAlert(a) {
   $('bIco').textContent = TYPE_ICON[type];
   $('bTitle').textContent = a.title || ''; $('bMsg').textContent = a.message || '';
   if (soundEnabled) MClockAudio.play(a.sound || 'bell', a.duration || 30);
-  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(a.title || 'm-clock', { body: a.message || '', icon: '/assets/logo.jpg', tag: 'm-clock' }); } catch(e){}
+  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(a.title || 'AQI Clock', { body: a.message || '', icon: '/assets/logo.jpg', tag: 'AQI Clock' }); } catch(e){}
   clearTimeout(bannerTimer); bannerTimer = setTimeout(hideAlert, Math.max(8000, (a.duration||30)*1000));
 }
 function hideAlert(){ $('banner').className = 'w-banner'; MClockAudio.stop(); }

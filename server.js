@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * m-clock — Networked classroom alarm system.
+ * AQI Clock — Networked classroom alarm system.
  *
  * One "main computer" runs this server and opens /control.
  * Every other computer opens / (the display) in a browser.
@@ -448,7 +448,7 @@ function localIPs() {
 
 server.listen(PORT, () => {
   const ips = localIPs();
-  console.log('\n  m-clock — classroom alarm system is running\n');
+  console.log('\n  AQI Clock — classroom alarm system is running\n');
   console.log('  On THIS (main) computer, open the control panel:');
   console.log(`    http://localhost:${PORT}/control\n`);
   console.log('  On EVERY OTHER computer, open the display screen:');

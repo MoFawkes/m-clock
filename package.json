@@ -1,7 +1,7 @@
 {
-  "name": "m-clock",
+  "name": "aqi-clock",
   "version": "1.0.0",
-  "description": "Networked classroom alarm system. One main computer pushes lesson/Salah alerts to all other computers automatically.",
+  "description": "AQI Clock — Networked classroom alarm system. One main computer pushes lesson/Salah alerts to all other computers automatically.",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

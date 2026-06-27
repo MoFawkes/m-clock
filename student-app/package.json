@@ -1,10 +1,10 @@
 {
-  "name": "m-clock-student",
-  "productName": "m-clock Student",
+  "name": "aqi-clock-student",
+  "productName": "AQI Clock Student",
   "version": "1.0.0",
-  "description": "Desktop companion for m-clock — receives lesson/Salah/Naseehah alerts for your group (full-time, part-time, teacher).",
+  "description": "Desktop companion for AQI Clock — receives lesson/Salah/Naseehah alerts for your group (full-time, part-time, teacher).",
   "main": "main.js",
-  "author": "m-clock",
+  "author": "AQI Clock",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "org.mclock.student",
-    "productName": "m-clock Student",
+    "productName": "AQI Clock Student",
     "files": ["main.js", "preload.js", "config.html"],
     "directories": { "output": "dist" },
     "win": { "target": "nsis" },

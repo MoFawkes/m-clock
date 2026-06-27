@@ -1,4 +1,4 @@
-# 🕌 m-clock — Classroom Alarm System
+# 🕌 AQI Clock — Classroom Alarm System
 
 A simple alarm/bell system for a classroom or madrasah where **one main
 computer** sends a sound and a full-screen alert to **all the other

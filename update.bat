@@ -1,7 +1,7 @@
 @echo off
-REM m-clock UPDATE + RUN for Windows.
+REM AQI Clock UPDATE + RUN for Windows.
 REM Pulls the latest version from GitHub, then starts the server.
-REM (Only works if you got m-clock with "git clone" — see the README.)
+REM (Only works if you got AQI Clock with "git clone" — see the README.)
 cd /d "%~dp0"
 
 where git >nul 2>nul
@@ -11,7 +11,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Updating m-clock from GitHub...
+echo Updating AQI Clock from GitHub...
 git pull
 echo.
 
@@ -22,7 +22,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Starting m-clock... keep this window open. Close it to stop.
+echo Starting AQI Clock... keep this window open. Close it to stop.
 start "" "http://localhost:3000/control"
 node server.js
 pause

@@ -1,5 +1,5 @@
 @echo off
-REM m-clock launcher for Windows - double-click this file to start the server.
+REM AQI Clock launcher for Windows - double-click this file to start the server.
 cd /d "%~dp0"
 
 where node >nul 2>nul
@@ -10,7 +10,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Starting m-clock... keep this window open. Close it to stop.
+echo Starting AQI Clock... keep this window open. Close it to stop.
 start "" "http://localhost:3000/control"
 node server.js
 pause

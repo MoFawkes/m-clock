@@ -1,5 +1,5 @@
 #!/bin/bash
-# m-clock launcher for macOS — double-click this file to start the server.
+# AQI Clock launcher for macOS — double-click this file to start the server.
 cd "$(dirname "$0")" || exit 1
 
 if ! command -v node >/dev/null 2>&1; then
@@ -12,6 +12,6 @@ fi
 # Open the control panel in the browser shortly after the server starts.
 ( sleep 1.5; open "http://localhost:3000/control" >/dev/null 2>&1 ) &
 
-echo "Starting m-clock... keep this window open. Close it to stop."
+echo "Starting AQI Clock... keep this window open. Close it to stop."
 node server.js
 read -r -p "Server stopped. Press Enter to close..."

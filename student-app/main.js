@@ -1,9 +1,9 @@
 'use strict';
 
 /*
- * m-clock Student — a small always-on-top desktop app.
+ * AQI Clock Student — a small always-on-top desktop app.
  *
- * On first run it asks for the server address (the main computer's m-clock URL)
+ * On first run it asks for the server address (the main computer's AQI Clock URL)
  * and which group the user is in (full-time / part-time / teacher). After that
  * it simply loads the server's compact widget page, which connects over SSE and
  * rings + shows a notification whenever the teacher fires an alert for that
@@ -39,7 +39,7 @@ function createWindow() {
     minWidth: 300,
     minHeight: 360,
     alwaysOnTop: true,
-    title: 'm-clock Student',
+    title: 'AQI Clock Student',
     backgroundColor: '#0c1b38',
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
@@ -71,7 +71,7 @@ function buildTray() {
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]);
-  tray.setToolTip('m-clock Student');
+  tray.setToolTip('AQI Clock Student');
   tray.setContextMenu(menu);
   tray.on('click', () => { if (win) win.show(); else createWindow(); });
 }

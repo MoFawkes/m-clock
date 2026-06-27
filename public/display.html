@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>m-clock — Display</title>
+<title>AQI Clock — Display</title>
 <link rel="icon" href="/assets/logo.jpg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
@@ -12,7 +12,7 @@
   <div class="screen-top">
     <div class="brand-mark">
       <img src="/assets/logo.jpg" alt="logo" />
-      <b>m-clock</b>
+      <b>AQI Clock</b>
     </div>
     <div class="top-meta">
       <span class="net"><span class="dot" id="dot"></span><span id="statusText">Connecting…</span></span>
@@ -180,7 +180,7 @@ function showAlert(a) {
   // Desktop notification (so it shows even if this tab is not in front).
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
-      const n = new Notification(a.title || TITLES[type], { body: a.message || '', icon: '/assets/logo.jpg', tag: 'm-clock' });
+      const n = new Notification(a.title || TITLES[type], { body: a.message || '', icon: '/assets/logo.jpg', tag: 'AQI Clock' });
       setTimeout(() => n.close(), 8000);
     }
   } catch (e) {}
