@@ -218,7 +218,7 @@ a { color: var(--blue); text-decoration: none; }
 .sidebar .spacer { flex: 1; }
 .sidebar .side-foot { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line-dark); padding-top: 14px; }
 
-.content { flex: 1; padding: 26px 34px 80px; max-width: 1680px; width: 100%; margin: 0 auto; }
+.content { flex: 1; min-width: 0; padding: 26px 40px 80px; width: 100%; }
 
 .page-head {
   display: flex; align-items: flex-start; justify-content: space-between;
